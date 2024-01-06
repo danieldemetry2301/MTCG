@@ -25,8 +25,10 @@ namespace FHTW.Swen1.Swamp.Database
 
                 ExecuteCommand(connection, @"
             CREATE TABLE IF NOT EXISTS Users (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT DEFAULT 0,
                 Username TEXT NOT NULL,
-                Password TEXT NOT NULL
+                Password TEXT NOT NULL,
+                Coins INTEGER
             )");
 
                 ExecuteCommand(connection, @"
@@ -39,7 +41,9 @@ namespace FHTW.Swen1.Swamp.Database
                 Id STRING PRIMARY KEY ,
                 Name STRING NOT NULL,
                 Damage INTEGER NOT NULL,
-                PackageId INTEGER,
+                PackageId STRING,
+                UserId INTEGER,
+                FOREIGN KEY (UserId) REFERENCES Users(Id),
                 FOREIGN KEY (PackageId) REFERENCES Packages(Id)
             )");
 
@@ -77,16 +81,26 @@ namespace FHTW.Swen1.Swamp.Database
 
                 var packageCommand = $"INSERT INTO Packages (Id) VALUES ('{package.Id}')";
                 ExecuteCommand(connection, packageCommand);
+                connection.Close();
+            }
+        }
 
-                foreach (var card in package.Cards)
+        public static void AcquireCards(long userId, List<Card> cards, string packageId)
+        {
+            using (var connection = new SqliteConnection(DataConnectionString))
+            {
+                connection.Open();
+
+                foreach (var card in cards)
                 {
-                    var insertCommand = $"INSERT INTO Cards (Id, Name, Damage, PackageId) VALUES ('{card.Id}', '{card.Name}', {card.Damage}, '{package.Id}')";
-                    ExecuteCommand(connection, insertCommand);
+                    var acquireCardCommand = $"INSERT INTO Cards (Id, Name, Damage, UserId, PackageId) VALUES ('{card.Id}', '{card.Name}', {card.Damage}, {userId}, '{packageId}')";
+                    ExecuteCommand(connection, acquireCardCommand);
                 }
 
                 connection.Close();
             }
         }
+
 
 
         private static void ExecuteCommand(SqliteConnection connection, string commandText)
@@ -105,6 +119,20 @@ namespace FHTW.Swen1.Swamp.Database
                 CreateDatabase();
             }
         }
+
+        public static void UpdateUserCoins(long userId, long newCoins)
+        {
+            using (var connection = new SqliteConnection(DataConnectionString))
+            {
+                connection.Open();
+
+                var updateUserCoinsCommand = $"UPDATE Users SET Coins = {newCoins} WHERE Id = {userId}";
+                ExecuteCommand(connection, updateUserCoinsCommand);
+
+                connection.Close();
+            }
+        }
+
 
     }
 }

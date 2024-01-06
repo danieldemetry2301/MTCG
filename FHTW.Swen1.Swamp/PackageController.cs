@@ -45,11 +45,17 @@ namespace FHTW.Swen1.Swamp
 
             if (CardExistsInGlobalPackages(cards))
             {
-
                 return "409 At least one card in the packages already exists";
             }
 
             var packageId = Guid.NewGuid().ToString();
+
+            // Check if package with the same ID already exists in globalPackages
+            if (globalPackages.Any(existingPackage => existingPackage.Id == packageId))
+            {
+                return "409 Package with the same ID already exists";
+            }
+
             var newPackage = new Package { Id = packageId, Cards = cards };
             globalPackages.Add(newPackage);
 
@@ -64,17 +70,18 @@ namespace FHTW.Swen1.Swamp
         }
 
 
+
         public string AcquirePackage(string username)
         {
             var user = userController.GetUserByUsername(username);
 
             if (user == null)
-            { 
+            {
                 return "404 No card package available for buying";
             }
 
             if (user.Coins < 5)
-            { 
+            {
                 return "403 Not enough money for buying a card package";
             }
 
@@ -85,13 +92,22 @@ namespace FHTW.Swen1.Swamp
 
             user.Coins -= 5;
 
-            var acquiredPackage = globalPackages[0];
+            
+            DatabaseHelper.UpdateUserCoins(user.Id, user.Coins);
+            if (globalPackages.Count > 0)
+            {
+                var acquiredPackage = globalPackages[0];
+                globalPackages.RemoveAt(0);
 
-            user.Cards.AddRange(acquiredPackage.Cards);
+                DatabaseHelper.UpdateUserCoins(user.Id, (long)user.Coins);
+                user.Cards.AddRange(acquiredPackage.Cards);
+                DatabaseHelper.AcquireCards(user.Id, acquiredPackage.Cards, acquiredPackage.Id);
 
-            globalPackages.RemoveAt(0);
-            return "200 A package has been successfully bought";
+                return "200 A package has been successfully bought";
+            }
+            return "404 No card package available for buying";
         }
+
 
         private static void ExecuteCommand(SqliteConnection connection, string commandText)
         {

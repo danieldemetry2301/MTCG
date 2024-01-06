@@ -162,6 +162,7 @@ private void HandleAcquirePackage(HttpSvrEventArgs e)
         {
             var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
             var username = TokenHelper.ExtractUsernameFromToken(token);
+            var acquiredCards = userController.GetAllAcquiredCards(username);
 
             if (string.IsNullOrEmpty(username))
             {
@@ -171,9 +172,9 @@ private void HandleAcquirePackage(HttpSvrEventArgs e)
 
             var user = userController.GetUserByUsername(username);
 
-            if (user != null)
+            if (acquiredCards.Any())
             {
-                var cardsJson = JsonConvert.SerializeObject(user.Cards, Formatting.Indented);
+                var cardsJson = JsonConvert.SerializeObject(acquiredCards, Formatting.Indented);
                 e.Reply(200, cardsJson);
             }
             else

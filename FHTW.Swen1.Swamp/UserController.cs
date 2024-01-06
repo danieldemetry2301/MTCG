@@ -63,24 +63,16 @@ namespace FHTW.Swen1.Swamp
             using (var connection = new SqliteConnection(DataConnectionString))
             {
                 connection.Open();
-                var query = $"SELECT * FROM Users WHERE Username = '{username}'";
 
-                using (var command = new SqliteCommand(query, connection))
-                {
-                    using (var reader = command.ExecuteReader())
-                    {
-                        if (reader.Read())
-                        {
-                            return new User(reader.GetString(0), reader.GetString(1)); // Hier den entsprechenden Index anpassen
-                        }
-                    }
-                }
+                var getUserCommand = $"SELECT * FROM Users WHERE Username = '{username}'";
+                var user = ExecuteQuery<User>(connection, getUserCommand).FirstOrDefault();
 
                 connection.Close();
-            }
 
-            return null;
+                return user;
+            }
         }
+
 
         private static bool UserExists(SqliteConnection connection, string username)
         {
@@ -92,5 +84,77 @@ namespace FHTW.Swen1.Swamp
                 return count > 0;
             }
         }
+
+        public List<Card> GetAllAcquiredCards(string username)
+        {
+            using (var connection = new SqliteConnection(DataConnectionString))
+            {
+                connection.Open();
+
+                var user = GetUserByUsername(username);
+
+                if (user == null)
+                {
+                    Console.WriteLine($"User {username} not found. Returning empty card list");
+                    return new List<Card>();
+                }
+
+                var getCardsCommand = $"SELECT * FROM Cards WHERE UserId = {user.Id}";
+                return ExecuteQuery<Card>(connection, getCardsCommand);
+            }
+        }
+
+
+        private List<T> ExecuteQuery<T>(SqliteConnection connection, string commandText) where T : new()
+        {
+            var result = new List<T>();
+
+            using (var command = new SqliteCommand(commandText, connection))
+            {
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        var item = new T();
+
+                        for (int i = 0; i < reader.FieldCount; i++)
+                        {
+                            var propertyName = reader.GetName(i);
+                            var property = typeof(T).GetProperty(propertyName);
+
+                            if (property != null)
+                            {
+                                var value = reader.GetValue(i);
+
+                                // Prüfe auf DBNull.Value
+                                if (value != DBNull.Value)
+                                {
+                                    // Konvertiere den Wert in den entsprechenden Typ
+                                    if (property.PropertyType == typeof(int) && value.GetType() == typeof(long))
+                                    {
+                                        property.SetValue(item, Convert.ToInt32(value));
+                                    }
+                                    else if (property.PropertyType == typeof(Guid) && value.GetType() == typeof(string))
+                                    {
+                                        property.SetValue(item, Guid.Parse(value.ToString()));
+                                    }
+                                    else
+                                    {
+                                        property.SetValue(item, value);
+                                    }
+                                }
+                            }
+                        }
+
+                        result.Add(item);
+                    }
+                }
+            }
+
+            return result;
+        }
+
+
+
     }
 }
