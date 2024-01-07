@@ -20,9 +20,7 @@ namespace FHTW.Swen1.Swamp
 
         private static void _ProcessMesage(object sender, HttpSvrEventArgs e)
         {
-            //e.PlainMessage();
             router.RouteRequest(e);
-
         }
     }
 

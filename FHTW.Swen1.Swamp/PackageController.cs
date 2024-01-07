@@ -1,22 +1,17 @@
-﻿using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using FHTW.Swen1.Swamp.Database;
+using Npgsql;
+using NpgsqlTypes;
 
 namespace FHTW.Swen1.Swamp
 {
-    using FHTW.Swen1.Swamp.Database;
-    using Microsoft.Data.Sqlite;
-    using System;
-    using System.Collections.Generic;
-    using System.Linq;
-
     public class PackageController
     {
         private static List<Package> globalPackages = new List<Package>();
-
         private UserController userController;
-        private const string DataConnectionString = "Data Source=mctg.db";
-
+        private const string DataConnectionString = "Host=localhost;Port=5432;Username=postgres;Password=admin;Database=mtcg";
 
         public PackageController(UserController userController)
         {
@@ -50,7 +45,6 @@ namespace FHTW.Swen1.Swamp
 
             var packageId = Guid.NewGuid().ToString();
 
-            // Check if package with the same ID already exists in globalPackages
             if (globalPackages.Any(existingPackage => existingPackage.Id == packageId))
             {
                 return "409 Package with the same ID already exists";
@@ -64,12 +58,10 @@ namespace FHTW.Swen1.Swamp
                 card.PackageId = packageId;
             }
 
-            DatabaseHelper.InsertPackage(newPackage);
+            InsertPackageToPostgres(newPackage);
 
             return "201 Package and cards successfully created";
         }
-
-
 
         public string AcquirePackage(string username)
         {
@@ -92,7 +84,7 @@ namespace FHTW.Swen1.Swamp
 
             user.Coins -= 5;
 
-            
+
             DatabaseHelper.UpdateUserCoins(user.Id, user.Coins);
             if (globalPackages.Count > 0)
             {
@@ -109,22 +101,29 @@ namespace FHTW.Swen1.Swamp
         }
 
 
-        private static void ExecuteCommand(SqliteConnection connection, string commandText)
+
+
+
+
+        private static void InsertPackageToPostgres(Package package)
         {
-            using (var command = new SqliteCommand(commandText, connection))
+            using (var connection = new NpgsqlConnection(DataConnectionString))
             {
-                try
-                {
-                    command.ExecuteNonQuery();
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"SQL Error: {ex.Message}");
-                }
+                connection.Open();
+
+                var packageCommand = $"INSERT INTO Packages (Id) VALUES ('{package.Id}')";
+                ExecuteCommand(connection, packageCommand);
+                connection.Close();
+            }
+        }
+
+      
+    private static void ExecuteCommand(NpgsqlConnection connection, string commandText)
+        {
+            using (var command = new NpgsqlCommand(commandText, connection))
+            {
+                command.ExecuteNonQuery();
             }
         }
     }
-
 }
-
-

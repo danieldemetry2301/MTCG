@@ -12,7 +12,7 @@ namespace FHTW.Swen1.Swamp
         public List<Card> Cards { get; set; } = new List<Card>();
         public List<Card> Deck { get; set; } = new List<Card>();
         public List<Package> Packages { get; set; } = new List<Package>();
-        public long Coins { get; set; } = 20;
+        public int Coins { get; set; } = 20;
         public string AccessToken { get; set; }
 
         public User()

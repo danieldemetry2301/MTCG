@@ -1,71 +1,83 @@
-﻿using FHTW.Swen1.Swamp.Database;
-using Microsoft.Data.Sqlite;
-using System;
+﻿    using Npgsql;
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
 
-namespace FHTW.Swen1.Swamp
-{
-    public class UserController
+    namespace FHTW.Swen1.Swamp
     {
-        private const string DataConnectionString = "Data Source=mctg.db";
-
-        public string RegisterUser(User user)
+        public class UserController
         {
-            using (var connection = new SqliteConnection(DataConnectionString))
-            {
-                connection.Open();
+            private const string DataConnectionString = "Host=localhost;Port=5432;Username=postgres;Password=admin;Database=mtcg";
 
-                if (UserExists(connection, user.Username))
+
+            public string RegisterUser(User user)
+            {
+                using (var connection = new NpgsqlConnection(DataConnectionString))
                 {
+                    connection.Open();
+
+                    if (UserExists(connection, user.Username))
+                    {
+                        connection.Close();
+                        return "409 User with the same username already registered";
+                    }
+
+                    InsertUserToPostgres(user);
+
                     connection.Close();
-                    return "409 User with the same username already registered";
+                    return "201 User successfully registered";
                 }
-
-                DatabaseHelper.InsertUser(user);
-
-                connection.Close();
-                return "201 User successfully registered";
             }
-        }
 
-
-        public string LoginUser(string username, string password)
-        {
-            using (var connection = new SqliteConnection(DataConnectionString))
+            public string LoginUser(string username, string password)
             {
-                connection.Open();
-
-                var user = GetUserByUsername(username);
-
-                connection.Close();
-
-                if (user != null && user.Password == password)
+                using (var connection = new NpgsqlConnection(DataConnectionString))
                 {
-                    return "200 User login successful";
-                }
-                else
-                {
-                    return "401 Invalid username/password provided";
+                    connection.Open();
+
+                    var user = GetUserByUsername(username);
+
+                    connection.Close();
+
+                    if (user != null)
+                    {
+                        if (!string.IsNullOrEmpty(user.Password) && user.Password == password)
+                        {
+                            return "200 User login successful";
+                        }
+                        else
+                        {
+                            return "401 Invalid username/password provided";
+                        }
+                    }
+                    else
+                    {
+                        return "401 Invalid username/password provided";
+                    }
                 }
             }
-        }
-
-        private static void ExecuteCommand(SqliteConnection connection, string commandText)
-        {
-            using (var command = new SqliteCommand(commandText, connection))
-            {
-                command.ExecuteNonQuery();
-            }
-        }
 
 
         public User GetUserByUsername(string username)
         {
-            using (var connection = new SqliteConnection(DataConnectionString))
+            using (var connection = new NpgsqlConnection(DataConnectionString))
             {
                 connection.Open();
 
-                var getUserCommand = $"SELECT * FROM Users WHERE Username = '{username}'";
-                var user = ExecuteQuery<User>(connection, getUserCommand).FirstOrDefault();
+                var getUserCommand = $"SELECT Id, Username, Password FROM Users WHERE Username = '{username}'";
+                var reader = new NpgsqlCommand(getUserCommand, connection).ExecuteReader();
+
+                User user = null;
+
+                while (reader.Read())
+                {
+                    user = new User
+                    {
+                        Id = reader.GetInt64(0),
+                        Username = reader.GetString(1),
+                        Password = reader.GetString(2)
+                    };
+                }
 
                 connection.Close();
 
@@ -74,20 +86,9 @@ namespace FHTW.Swen1.Swamp
         }
 
 
-        private static bool UserExists(SqliteConnection connection, string username)
-        {
-            var query = $"SELECT COUNT(*) FROM Users WHERE Username = '{username}'";
-
-            using (var command = new SqliteCommand(query, connection))
-            {
-                var count = Convert.ToInt32(command.ExecuteScalar());
-                return count > 0;
-            }
-        }
-
         public List<Card> GetAllAcquiredCards(string username)
         {
-            using (var connection = new SqliteConnection(DataConnectionString))
+            using (var connection = new NpgsqlConnection(DataConnectionString))
             {
                 connection.Open();
 
@@ -104,57 +105,85 @@ namespace FHTW.Swen1.Swamp
             }
         }
 
-
-        private List<T> ExecuteQuery<T>(SqliteConnection connection, string commandText) where T : new()
-        {
-            var result = new List<T>();
-
-            using (var command = new SqliteCommand(commandText, connection))
+        private static void InsertUserToPostgres(User user)
             {
-                using (var reader = command.ExecuteReader())
+                using (var connection = new NpgsqlConnection(DataConnectionString))
                 {
-                    while (reader.Read())
-                    {
-                        var item = new T();
+                    connection.Open();
 
-                        for (int i = 0; i < reader.FieldCount; i++)
-                        {
-                            var propertyName = reader.GetName(i);
-                            var property = typeof(T).GetProperty(propertyName);
+                    var insertUserCommand = $"INSERT INTO Users (Username, Password) VALUES ('{user.Username}', '{user.Password}')";
+                    ExecuteCommand(connection, insertUserCommand);
 
-                            if (property != null)
-                            {
-                                var value = reader.GetValue(i);
-
-                                // Prüfe auf DBNull.Value
-                                if (value != DBNull.Value)
-                                {
-                                    // Konvertiere den Wert in den entsprechenden Typ
-                                    if (property.PropertyType == typeof(int) && value.GetType() == typeof(long))
-                                    {
-                                        property.SetValue(item, Convert.ToInt32(value));
-                                    }
-                                    else if (property.PropertyType == typeof(Guid) && value.GetType() == typeof(string))
-                                    {
-                                        property.SetValue(item, Guid.Parse(value.ToString()));
-                                    }
-                                    else
-                                    {
-                                        property.SetValue(item, value);
-                                    }
-                                }
-                            }
-                        }
-
-                        result.Add(item);
-                    }
+                    connection.Close();
                 }
             }
 
-            return result;
+            private static bool UserExists(NpgsqlConnection connection, string username)
+            {
+                var query = $"SELECT COUNT(*) FROM Users WHERE Username = '{username}'";
+
+                using (var command = new NpgsqlCommand(query, connection))
+                {
+                    var count = Convert.ToInt32(command.ExecuteScalar());
+                    return count > 0;
+                }
+            }
+
+            private static void ExecuteCommand(NpgsqlConnection connection, string commandText)
+            {
+                using (var command = new NpgsqlCommand(commandText, connection))
+                {
+                    command.ExecuteNonQuery();
+                }
+            }
+
+            private List<T> ExecuteQuery<T>(NpgsqlConnection connection, string commandText) where T : new()
+            {
+                var result = new List<T>();
+
+                using (var command = new NpgsqlCommand(commandText, connection))
+                {
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            var item = new T();
+
+                            for (int i = 0; i < reader.FieldCount; i++)
+                            {
+                                var propertyName = reader.GetName(i);
+                                var property = typeof(T).GetProperty(propertyName);
+
+                                if (property != null)
+                                {
+                                    var value = reader.GetValue(i);
+
+                                    // Prüfe auf DBNull.Value
+                                    if (value != DBNull.Value)
+                                    {
+                                        // Konvertiere den Wert in den entsprechenden Typ
+                                        if (property.PropertyType == typeof(int) && value.GetType() == typeof(long))
+                                        {
+                                            property.SetValue(item, Convert.ToInt32(value));
+                                        }
+                                        else if (property.PropertyType == typeof(Guid) && value.GetType() == typeof(string))
+                                        {
+                                            property.SetValue(item, Guid.Parse(value.ToString()));
+                                        }
+                                        else
+                                        {
+                                            property.SetValue(item, value);
+                                        }
+                                    }
+                                }
+                            }
+
+                            result.Add(item);
+                        }
+                    }
+                }
+
+                return result;
+            }
         }
-
-
-
     }
-}

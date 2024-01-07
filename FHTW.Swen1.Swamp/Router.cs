@@ -1,6 +1,7 @@
-﻿using Newtonsoft.Json;
+﻿using FHTW.Swen1.Swamp.Database;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using System;
+
 
 namespace FHTW.Swen1.Swamp
 {
@@ -14,6 +15,7 @@ namespace FHTW.Swen1.Swamp
         {
             packageController = new PackageController(userController);
         }
+
         public void RouteRequest(HttpSvrEventArgs e)
         {
             var path = e.Path;
@@ -22,41 +24,29 @@ namespace FHTW.Swen1.Swamp
             {
                 HandleUserRegistration(e);
             }
-
             else if (path.StartsWith("/sessions") && e.Method == "POST")
             {
                 HandleUserLogin(e);
             }
-
             else if (path.StartsWith("/packages") && e.Method == "POST")
             {
                 HandleCreatePackage(e);
             }
-
             else if (path.StartsWith("/transactions/packages") && e.Method == "POST")
             {
                 HandleAcquirePackage(e);
             }
-
             else if (path.StartsWith("/cards") && e.Method == "GET")
             {
                 HandleShowCards(e);
             }
-
-            /*else if (path.StartsWith("/users") && e.Method == "GET")
-            {
-                HandleGetUser(e);
-            }*/
-            // Weitere Routen hinzufügen...
-
             else
             {
                 e.Reply(404, "Not Found");
             }
         }
 
-
-private void HandleAcquirePackage(HttpSvrEventArgs e)
+        private void HandleAcquirePackage(HttpSvrEventArgs e)
         {
             var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
             var username = TokenHelper.ExtractUsernameFromToken(token);
@@ -90,7 +80,6 @@ private void HandleAcquirePackage(HttpSvrEventArgs e)
             }
         }
 
-
         private void HandleUserRegistration(HttpSvrEventArgs e)
         {
             var payload = e.Payload;
@@ -99,14 +88,6 @@ private void HandleAcquirePackage(HttpSvrEventArgs e)
             var result = userController.RegisterUser(user);
             e.Reply(200, result);
         }
-
-        /*private void HandleGetUser(HttpSvrEventArgs e)
-        {
-            var username = "extracted_username";
-            var result = userController.GetUser(username);
-            e.Reply(200, result);
-        }
-        */
 
         private void HandleUserLogin(HttpSvrEventArgs e)
         {
@@ -140,7 +121,6 @@ private void HandleAcquirePackage(HttpSvrEventArgs e)
             var payload = e.Payload;
             var receivedCards = DeserializeCardsFromRequest(payload);
 
- 
             var result = packageController.CreatePackage(username, receivedCards);
 
             if (result.StartsWith("201"))
@@ -156,7 +136,6 @@ private void HandleAcquirePackage(HttpSvrEventArgs e)
                 e.Reply(409, result);
             }
         }
-
 
         private void HandleShowCards(HttpSvrEventArgs e)
         {
@@ -194,7 +173,7 @@ private void HandleAcquirePackage(HttpSvrEventArgs e)
                     var cardObj = jToken.ToObject<JObject>();
                     var id = cardObj.GetValue("Id").ToString();
                     var name = cardObj.GetValue("Name").ToString();
-                    var damage = cardObj.GetValue("Damage").ToObject<int>();
+                    var damage = cardObj.GetValue("Damage").ToObject<double>();
 
                     return new Card { Id = new Guid(id), Name = name, Damage = damage };
                 }).ToList();
@@ -206,9 +185,5 @@ private void HandleAcquirePackage(HttpSvrEventArgs e)
                 return new List<Card>();
             }
         }
-
-
-
     }
 }
-
