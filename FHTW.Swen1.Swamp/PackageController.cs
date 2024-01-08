@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using FHTW.Swen1.Swamp.Database;
 using Npgsql;
@@ -53,12 +54,13 @@ namespace FHTW.Swen1.Swamp
             var newPackage = new Package { Id = packageId, Cards = cards };
             globalPackages.Add(newPackage);
 
+
             foreach (var card in cards)
             {
                 card.PackageId = packageId;
             }
-
-            InsertPackageToPostgres(newPackage);
+            DatabaseHelper.InsertPackage(newPackage);
+            DatabaseHelper.InsertCards(cards);
 
             return "201 Package and cards successfully created";
         }
@@ -84,41 +86,21 @@ namespace FHTW.Swen1.Swamp
 
             user.Coins -= 5;
 
-
             DatabaseHelper.UpdateUserCoins(user.Id, user.Coins);
+
             if (globalPackages.Count > 0)
             {
                 var acquiredPackage = globalPackages[0];
                 globalPackages.RemoveAt(0);
-
-                DatabaseHelper.UpdateUserCoins(user.Id, (long)user.Coins);
+                DatabaseHelper.AcquireCards(user.Id, acquiredPackage.Cards);
                 user.Cards.AddRange(acquiredPackage.Cards);
-                DatabaseHelper.AcquireCards(user.Id, acquiredPackage.Cards, acquiredPackage.Id);
-
                 return "200 A package has been successfully bought";
             }
+
             return "404 No card package available for buying";
         }
 
-
-
-
-
-
-        private static void InsertPackageToPostgres(Package package)
-        {
-            using (var connection = new NpgsqlConnection(DataConnectionString))
-            {
-                connection.Open();
-
-                var packageCommand = $"INSERT INTO Packages (Id) VALUES ('{package.Id}')";
-                ExecuteCommand(connection, packageCommand);
-                connection.Close();
-            }
-        }
-
-      
-    private static void ExecuteCommand(NpgsqlConnection connection, string commandText)
+        private static void ExecuteCommand(NpgsqlConnection connection, string commandText)
         {
             using (var command = new NpgsqlCommand(commandText, connection))
             {

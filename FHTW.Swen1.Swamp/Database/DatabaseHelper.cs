@@ -30,7 +30,7 @@ namespace FHTW.Swen1.Swamp.Database
                         Id SERIAL PRIMARY KEY,
                         Username VARCHAR(255),
                         Password VARCHAR(255),
-                        Coins INTEGER
+                        Coins INTEGER NOT NULL
                     )");
 
                 ExecuteCommand(connection, @"
@@ -40,7 +40,7 @@ namespace FHTW.Swen1.Swamp.Database
 
                 ExecuteCommand(connection, @"
                     CREATE TABLE IF NOT EXISTS Cards (
-                        Id UUID PRIMARY KEY,
+                        Id TEXT PRIMARY KEY,
                         Name TEXT NOT NULL,
                         Damage DOUBLE PRECISION NOT NULL,
                         PackageId UUID,
@@ -59,7 +59,7 @@ namespace FHTW.Swen1.Swamp.Database
             {
                 connection.Open();
 
-                var insertUserCommand = $"INSERT INTO Users (Username, Password) VALUES ('{user.Username}', '{user.Password}')";
+                var insertUserCommand = $"INSERT INTO Users (Username, Password, Coins) VALUES ('{user.Username}', '{user.Password}', {user.Coins})";
                 ExecuteCommand(connection, insertUserCommand);
 
                 connection.Close();
@@ -79,7 +79,7 @@ namespace FHTW.Swen1.Swamp.Database
             }
         }
 
-        public static void AcquireCards(long userId, List<Card> cards, string packageId)
+        public static void InsertCards(List<Card> cards)
         {
             using (var connection = new NpgsqlConnection(DataConnectionString))
             {
@@ -87,13 +87,31 @@ namespace FHTW.Swen1.Swamp.Database
 
                 foreach (var card in cards)
                 {
-                    var acquireCardCommand = $"INSERT INTO Cards (Id, Name, Damage, UserId, PackageId) VALUES ('{card.Id}', '{card.Name}', {card.Damage}, {userId}, '{packageId}')";
+                    var cardCommand = $"INSERT INTO Cards (Id, Name, Damage, PackageId) VALUES ('{card.Id}', '{card.Name}', {card.Damage}, '{card.PackageId}')";
+                    ExecuteCommand(connection, cardCommand);
+                }
+
+                connection.Close();
+            }
+        }
+
+
+        public static void AcquireCards(long userId, List<Card> cards)
+        {
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+
+                foreach (var card in cards)
+                {
+                    var acquireCardCommand = $"UPDATE Cards SET UserId = {userId} WHERE Id = '{card.Id}'";
                     ExecuteCommand(connection, acquireCardCommand);
                 }
 
                 connection.Close();
             }
         }
+
 
         public static void ResetDatabase()
         {
@@ -110,19 +128,28 @@ namespace FHTW.Swen1.Swamp.Database
             }
         }
 
-       
+
         public static void UpdateUserCoins(long userId, long newCoins)
         {
-            using (var connection = new NpgsqlConnection(DataConnectionString))
+            try
             {
-                connection.Open();
-
-                var updateUserCoinsCommand = $"UPDATE Users SET Coins = {newCoins} WHERE Id = {userId}";
-                ExecuteCommand(connection, updateUserCoinsCommand);
-
-                connection.Close();
+                using (var connection = new NpgsqlConnection(DataConnectionString))
+                {
+                    connection.Open();
+                    var updateUserCoinsCommand = $"UPDATE Users SET Coins = {newCoins} WHERE Id = {userId}";
+                    using (var command = new NpgsqlCommand(updateUserCoinsCommand, connection))
+                    {
+                        int rowsAffected = command.ExecuteNonQuery();
+                    }
+                    connection.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating user coins: {ex.Message}");
             }
         }
+
 
         private static void ExecuteCommand(NpgsqlConnection connection, string commandText)
         {

@@ -59,26 +59,23 @@ namespace FHTW.Swen1.Swamp
 
             var result = packageController.AcquirePackage(username);
 
+            
             if (result.StartsWith("200"))
             {
-                e.Reply(200, "A package has been successfully bought");
+                e.Reply(200, result);
             }
-
-            else if (result.StartsWith("401"))
-            {
-                e.Reply(401, "Access token is missing or invalid");
-            }
-
             else if (result.StartsWith("403"))
             {
-                e.Reply(403, "Not enough money for buying a card package");
+                e.Reply(403, result);
             }
-
             else if (result.StartsWith("404"))
             {
-                e.Reply(404, "No card package available for buying");
+                e.Reply(404, result);
             }
+           
         }
+
+
 
         private void HandleUserRegistration(HttpSvrEventArgs e)
         {
@@ -175,7 +172,7 @@ namespace FHTW.Swen1.Swamp
                     var name = cardObj.GetValue("Name").ToString();
                     var damage = cardObj.GetValue("Damage").ToObject<double>();
 
-                    return new Card { Id = new Guid(id), Name = name, Damage = damage };
+                    return new Card { Id = id, Name = name, Damage = damage };
                 }).ToList();
 
                 return cards;
