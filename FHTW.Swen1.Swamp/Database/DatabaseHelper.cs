@@ -9,6 +9,7 @@ namespace FHTW.Swen1.Swamp.Database
     {
         private const string DatabaseFileName = "mtcg";
         private const string DataConnectionString = "Host=localhost;Port=5432;Username=postgres;Password=admin;Database=mtcg";
+        private static UserController userController;
 
         public static void CreateDatabase()
         {
@@ -49,6 +50,15 @@ namespace FHTW.Swen1.Swamp.Database
                         FOREIGN KEY (PackageId) REFERENCES Packages(Id)
                     )");
 
+                ExecuteCommand(connection, @"
+                    CREATE TABLE IF NOT EXISTS Decks (
+                        UserId INTEGER NOT NULL,
+                        CardId TEXT NOT NULL,
+                        FOREIGN KEY (UserId) REFERENCES Users(Id),
+                        FOREIGN KEY (CardId) REFERENCES Cards(Id),
+                        PRIMARY KEY (UserId, CardId)
+                    )");
+
                 connection.Close();
             }
         }
@@ -65,6 +75,7 @@ namespace FHTW.Swen1.Swamp.Database
                 connection.Close();
             }
         }
+
 
         public static void InsertPackage(Package package)
         {
@@ -94,8 +105,6 @@ namespace FHTW.Swen1.Swamp.Database
                 connection.Close();
             }
         }
-
-
         public static void AcquireCards(long userId, List<Card> cards)
         {
             using (var connection = new NpgsqlConnection(DataConnectionString))
@@ -119,15 +128,27 @@ namespace FHTW.Swen1.Swamp.Database
             {
                 connection.Open();
 
-                ExecuteCommand(connection, "DROP TABLE IF EXISTS Cards");
-                ExecuteCommand(connection, "DROP TABLE IF EXISTS Packages");
-                ExecuteCommand(connection, "DROP TABLE IF EXISTS Users");
+                ExecuteCommand(connection, "DROP TABLE IF EXISTS Cards CASCADE");
+                ExecuteCommand(connection, "DROP TABLE IF EXISTS Packages CASCADE");
+                ExecuteCommand(connection, "DROP TABLE IF EXISTS Users CASCADE");
+                ExecuteCommand(connection, "DROP TABLE IF EXISTS Decks CASCADE");
                 CreateTables();
 
                 connection.Close();
             }
         }
 
+        
+
+        public bool UserOwnsCard(NpgsqlConnection connection, long userId, string cardId)
+        {
+            var checkCardCommand = $"SELECT COUNT(*) FROM Cards WHERE Id = '{cardId}' AND UserId = {userId}";
+            using (var command = new NpgsqlCommand(checkCardCommand, connection))
+            {
+                var count = Convert.ToInt32(command.ExecuteScalar());
+                return count > 0;
+            }
+        }
 
         public static void UpdateUserCoins(long userId, long newCoins)
         {

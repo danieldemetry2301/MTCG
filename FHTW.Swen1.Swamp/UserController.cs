@@ -96,6 +96,19 @@ using Npgsql;
             }
         }
 
+        public List<Card> GetUserDeck(string username)
+        {
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+
+                var user = GetUserByUsername(username);
+                if (user == null) return new List<Card>();
+
+                var getDeckCommand = $"SELECT Cards.* FROM Cards INNER JOIN Decks ON Cards.Id = Decks.CardId WHERE Decks.UserId = {user.Id}";
+                return ExecuteQuery<Card>(connection, getDeckCommand);
+            }
+        }
 
 
         public List<Card> GetAllAcquiredCards(string username)
@@ -105,6 +118,7 @@ using Npgsql;
                 Console.WriteLine("Username is null or empty. Returning empty card list.");
                 return new List<Card>();
             }
+
 
             using (var connection = new NpgsqlConnection(DataConnectionString))
             {
@@ -135,6 +149,51 @@ using Npgsql;
             }
         }
 
+        public string ConfigureUserDeck(string username, List<string> cardIds)
+        {
+            if (cardIds.Count < 4)
+            {
+                return "400 The provided deck did not include the required amount of cards";
+            }
+
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+
+                var user = GetUserByUsername(username);
+                if (user == null)
+                {
+                    return "401 Access token is missing or invalid";
+                }
+                    
+                var cardsBelongToUser = cardIds.All(cardId => UserOwnsCard(connection, user.Id, cardId));
+                if (!cardsBelongToUser)
+                {
+                    return "403 At least one of the provided cards does not belong to the user or is not available";
+                }
+                foreach (var cardId in cardIds)
+                {
+                    var insertDeckCommand = $"INSERT INTO Decks (UserId, CardId) VALUES ({user.Id}, '{cardId}')";
+                    ExecuteCommand(connection, insertDeckCommand);
+                }
+
+                connection.Close();
+            }
+
+            return "200 The deck has been successfully configured";
+        }
+
+        private bool UserOwnsCard(NpgsqlConnection connection, long userId, string cardId)
+        {
+            var checkCardCommand = $"SELECT COUNT(*) FROM Cards WHERE Id = '{cardId}' AND UserId = {userId}";
+            using (var command = new NpgsqlCommand(checkCardCommand, connection))
+            {
+                var count = Convert.ToInt32(command.ExecuteScalar());
+                return count > 0;
+            }
+        }
+
+
         private static void ExecuteCommand(NpgsqlConnection connection, string commandText)
         {
             using (var command = new NpgsqlCommand(commandText, connection))
@@ -142,6 +201,7 @@ using Npgsql;
                 command.ExecuteNonQuery();
             }
         }
+                
 
         private List<T> ExecuteQuery<T>(NpgsqlConnection connection, string commandText) where T : new()
         {

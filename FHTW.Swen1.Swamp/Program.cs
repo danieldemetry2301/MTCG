@@ -16,6 +16,7 @@ namespace FHTW.Swen1.Swamp
             svr.Incoming += _ProcessMesage;
 
             svr.Run();
+            
         }
 
         private static void _ProcessMesage(object sender, HttpSvrEventArgs e)

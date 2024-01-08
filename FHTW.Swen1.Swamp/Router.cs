@@ -10,6 +10,7 @@ namespace FHTW.Swen1.Swamp
         private UserController userController = new UserController();
         private PackageController packageController;
         private List<Package> packages = new List<Package>();
+        private DatabaseHelper databaseHelper;
 
         public Router()
         {
@@ -40,9 +41,44 @@ namespace FHTW.Swen1.Swamp
             {
                 HandleShowCards(e);
             }
+            else if (path.StartsWith("/deck") && e.Method == "GET")
+            {
+                HandleShowDeck(e);
+            }
+            else if (path.StartsWith("/deck") && e.Method == "PUT")
+            {
+                HandleUpdateDeck(e);
+            }
             else
             {
                 e.Reply(404, "Not Found");
+            }
+        }
+
+        private void HandleUpdateDeck(HttpSvrEventArgs e)
+        {
+            var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
+            var username = TokenHelper.ExtractUsernameFromToken(token);
+            if (string.IsNullOrEmpty(username))
+            {
+                e.Reply(401, "Access token is missing or invalid");
+                return;
+            }
+
+            var cardIds = JsonConvert.DeserializeObject<List<string>>(e.Payload);
+            var result = userController.ConfigureUserDeck(username, cardIds);
+
+            if (result.StartsWith("200"))
+            {
+                e.Reply(200, result);
+            }
+            else if (result.StartsWith("400"))
+            {
+                e.Reply(400, result);
+            }
+            else if (result.StartsWith("403"))
+            {
+                e.Reply(403, result);
             }
         }
 
@@ -75,7 +111,30 @@ namespace FHTW.Swen1.Swamp
            
         }
 
+        private void HandleShowDeck(HttpSvrEventArgs e)
+        {
+            var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
+            var username = TokenHelper.ExtractUsernameFromToken(token);
+            var cardsIndeck = userController.GetUserDeck(username);
 
+            if (string.IsNullOrEmpty(username))
+            {
+                e.Reply(401, "Access token is missing or invalid");
+                return;
+            }
+
+            var user = userController.GetUserByUsername(username);
+
+            if (cardsIndeck.Any())
+            {
+                var cardsJson = JsonConvert.SerializeObject(cardsIndeck, Formatting.Indented);
+                e.Reply(200, cardsJson);
+            }
+            else
+            {
+                e.Reply(204, "The request was fine, but the deck doesn't have any cards");
+            }
+        }
 
         private void HandleUserRegistration(HttpSvrEventArgs e)
         {

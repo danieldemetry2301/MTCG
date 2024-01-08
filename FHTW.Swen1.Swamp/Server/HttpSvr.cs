@@ -45,7 +45,7 @@ namespace FHTW.Swen1.Swamp
         public void Run()
         {
             if(Active) return;
-
+            Console.WriteLine("Server started. Waiting for connections...");
             Active = true;
             _Listener = new(IPAddress.Parse("127.0.0.1"), 10001);
             _Listener.Start();
@@ -56,6 +56,7 @@ namespace FHTW.Swen1.Swamp
             {
                 TcpClient client = _Listener.AcceptTcpClient();
 
+
                 string data = string.Empty;
                 while(client.GetStream().DataAvailable || (string.IsNullOrEmpty(data)))
                 {
@@ -65,6 +66,7 @@ namespace FHTW.Swen1.Swamp
 
                 Incoming?.Invoke(this, new HttpSvrEventArgs(client, data));
             }
+
 
             _Listener.Stop();
         }
