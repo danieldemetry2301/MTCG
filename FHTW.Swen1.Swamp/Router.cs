@@ -1,4 +1,5 @@
 ﻿using FHTW.Swen1.Swamp.Database;
+using MTCG_DEMETRY.Battle;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -11,6 +12,7 @@ namespace FHTW.Swen1.Swamp
         private PackageController packageController;
         private List<Package> packages = new List<Package>();
         private DatabaseHelper databaseHelper;
+        private LobbyController lobbyController = new LobbyController();
 
         public Router()
         {
@@ -65,10 +67,52 @@ namespace FHTW.Swen1.Swamp
             {
                 HandleGetScoreboard(e);
             }
+            else if (path.StartsWith("/battles") && e.Method == "POST")
+            {
+                HandleJoinBattleLobby(e);
+            }
             else
             {
                 e.Reply(404, "Not Found");
             }
+        }
+
+        /*private void HandleBattle(HttpSvrEventArgs e)
+        {
+            var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
+            var username = TokenHelper.ExtractUsernameFromToken(token);
+
+            if (string.IsNullOrEmpty(username))
+            {
+                e.Reply(401, "Access token is missing or invalid");
+                return;
+            }
+
+            var playerA = userController.GetUserByUsername(username);
+            var playerB = DatabaseHelper.GetOpponentForBattle(username); // Findet einen Gegner, der nicht der anfragende Benutzer ist
+
+            var battleController = new BattleController();
+            var battleLog = battleController.StartBattle(playerA, playerB);
+
+            var battleLogJson = JsonConvert.SerializeObject(battleLog, Formatting.Indented);
+            e.Reply(200, battleLogJson);
+        }*/
+
+        private void HandleJoinBattleLobby(HttpSvrEventArgs e)
+        {
+            var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
+            var username = TokenHelper.ExtractUsernameFromToken(token);
+
+            if (string.IsNullOrEmpty(username))
+            {
+                e.Reply(401, "Access token is missing or invalid");
+                return;
+            }
+
+            var user = userController.GetUserByUsername(username);
+            var lobbyMessage = lobbyController.JoinBattleLobby(user);
+
+            e.Reply(200, lobbyMessage);
         }
 
         private void HandleGetScoreboard(HttpSvrEventArgs e)
@@ -82,7 +126,7 @@ namespace FHTW.Swen1.Swamp
                 return;
             }
 
-            var scoreboard = userController.GetScoreboard();
+            var scoreboard = userController.GetUserScoreboard();
             var scoreboardJson = JsonConvert.SerializeObject(scoreboard, Formatting.Indented);
             e.Reply(200, scoreboardJson);
         }
@@ -121,7 +165,6 @@ namespace FHTW.Swen1.Swamp
             var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
             var tokenUsername = TokenHelper.ExtractUsernameFromToken(token);
 
-            // Prüfen, ob das Token gültig ist und zum angeforderten Benutzernamen passt
             if (string.IsNullOrEmpty(tokenUsername) || tokenUsername != requestedUsername)
             {
                 e.Reply(401, "Access token is missing or invalid");
@@ -304,7 +347,7 @@ namespace FHTW.Swen1.Swamp
         {
             var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
             var username = TokenHelper.ExtractUsernameFromToken(token);
-            var acquiredCards = userController.GetAllAcquiredCards(username);
+            var acquiredCards = userController.GetUserAcquiredCards(username);
 
             if (string.IsNullOrEmpty(username))
             {
