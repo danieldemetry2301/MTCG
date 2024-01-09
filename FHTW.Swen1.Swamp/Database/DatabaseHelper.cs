@@ -1,11 +1,12 @@
 ﻿using Npgsql;
+using NpgsqlTypes;
 using System;
 using System.Collections.Generic;
 using System.IO;
 
 namespace FHTW.Swen1.Swamp.Database
 {
-    public class DatabaseHelper
+    public partial class DatabaseHelper
     {
         private const string DatabaseFileName = "mtcg";
         private const string DataConnectionString = "Host=localhost;Port=5432;Username=postgres;Password=admin;Database=mtcg";
@@ -35,14 +36,14 @@ namespace FHTW.Swen1.Swamp.Database
                         Name VARCHAR(255),
                         Bio TEXT,
                         Image TEXT,
-                        Elo INTEGER NOT NULL DEFAULT 0,
+                        Elo INTEGER NOT NULL,
                         Wins INTEGER NOT NULL DEFAULT 0,
                         Losses INTEGER NOT NULL DEFAULT 0
                     )");
 
                 ExecuteCommand(connection, @"
                     CREATE TABLE IF NOT EXISTS Packages (
-                        Id UUID PRIMARY KEY
+                        Id TEXT PRIMARY KEY
                     )");
 
                 ExecuteCommand(connection, @"
@@ -50,7 +51,7 @@ namespace FHTW.Swen1.Swamp.Database
                         Id TEXT PRIMARY KEY,
                         Name TEXT NOT NULL,
                         Damage DOUBLE PRECISION NOT NULL,
-                        PackageId UUID,
+                        PackageId TEXT,
                         UserId INTEGER,
                         FOREIGN KEY (UserId) REFERENCES Users(Id),
                         FOREIGN KEY (PackageId) REFERENCES Packages(Id)
@@ -69,19 +70,32 @@ namespace FHTW.Swen1.Swamp.Database
             }
         }
 
+
         public static void InsertUser(User user)
         {
             using (var connection = new NpgsqlConnection(DataConnectionString))
             {
                 connection.Open();
 
-                var insertUserCommand = $"INSERT INTO Users (Username, Password, Coins) VALUES ('{user.Username}', '{user.Password}', {user.Coins})";
-                ExecuteCommand(connection, insertUserCommand);
+                var insertUserCommand = new NpgsqlCommand(@"
+                INSERT INTO Users (Username, Password, Coins, Name, Bio, Image, Elo, Wins, Losses) 
+                VALUES (@username, @password, @coins, @name, @bio, @image, @elo, @wins, @losses)", connection);
+
+                insertUserCommand.Parameters.AddWithValue("@username", user.Username);
+                insertUserCommand.Parameters.AddWithValue("@password", user.Password);
+                insertUserCommand.Parameters.AddWithValue("@coins", user.Coins);
+                insertUserCommand.Parameters.AddWithValue("@name", user.Name ?? (object)DBNull.Value);
+                insertUserCommand.Parameters.AddWithValue("@bio", user.Bio ?? (object)DBNull.Value);  
+                insertUserCommand.Parameters.AddWithValue("@image", user.Image ?? (object)DBNull.Value); 
+                insertUserCommand.Parameters.AddWithValue("@elo", user.Elo);
+                insertUserCommand.Parameters.AddWithValue("@wins", user.Wins);
+                insertUserCommand.Parameters.AddWithValue("@losses", user.Losses);
+
+                insertUserCommand.ExecuteNonQuery();
 
                 connection.Close();
             }
         }
-
 
         public static void InsertPackage(Package package)
         {
@@ -89,12 +103,18 @@ namespace FHTW.Swen1.Swamp.Database
             {
                 connection.Open();
 
-                var packageCommand = $"INSERT INTO Packages (Id) VALUES ('{package.Id}')";
-                ExecuteCommand(connection, packageCommand);
+                var packageCommand = new NpgsqlCommand("INSERT INTO Packages (Id) VALUES (@id)", connection);
+                packageCommand.Parameters.AddWithValue("@id", package.Id);
+
+                packageCommand.ExecuteNonQuery();
 
                 connection.Close();
             }
         }
+
+
+
+
 
         public static void InsertCards(List<Card> cards)
         {
@@ -104,13 +124,19 @@ namespace FHTW.Swen1.Swamp.Database
 
                 foreach (var card in cards)
                 {
-                    var cardCommand = $"INSERT INTO Cards (Id, Name, Damage, PackageId) VALUES ('{card.Id}', '{card.Name}', {card.Damage}, '{card.PackageId}')";
-                    ExecuteCommand(connection, cardCommand);
+                    var cardCommand = new NpgsqlCommand("INSERT INTO Cards (Id, Name, Damage, PackageId) VALUES (@id, @name, @damage, @packageId)", connection);
+                    cardCommand.Parameters.AddWithValue("@id", card.Id);
+                    cardCommand.Parameters.AddWithValue("@name", card.Name);
+                    cardCommand.Parameters.AddWithValue("@damage", card.Damage);
+                    cardCommand.Parameters.AddWithValue("@packageId", card.PackageId);
+
+                    cardCommand.ExecuteNonQuery();
                 }
 
                 connection.Close();
             }
         }
+
         public static void AcquireCards(long userId, List<Card> cards)
         {
             using (var connection = new NpgsqlConnection(DataConnectionString))
@@ -119,14 +145,104 @@ namespace FHTW.Swen1.Swamp.Database
 
                 foreach (var card in cards)
                 {
-                    var acquireCardCommand = $"UPDATE Cards SET UserId = {userId} WHERE Id = '{card.Id}'";
-                    ExecuteCommand(connection, acquireCardCommand);
+                    var acquireCardCommand = new NpgsqlCommand("UPDATE Cards SET UserId = @userId WHERE Id = @cardId", connection);
+                    acquireCardCommand.Parameters.AddWithValue("@userId", userId);
+                    acquireCardCommand.Parameters.AddWithValue("@cardId", card.Id);
+
+                    acquireCardCommand.ExecuteNonQuery();
                 }
 
                 connection.Close();
             }
         }
 
+
+
+        public bool UserOwnsCard(NpgsqlConnection connection, long userId, string cardId)
+        {
+            var checkCardCommand = "SELECT COUNT(*) FROM Cards WHERE Id = @cardId AND UserId = @userId";
+            using (var command = new NpgsqlCommand(checkCardCommand, connection))
+            {
+                command.Parameters.AddWithValue("@cardId", cardId);
+                command.Parameters.AddWithValue("@userId", userId);
+
+                var count = Convert.ToInt32(command.ExecuteScalar());
+                return count > 0;
+            }
+        }
+
+
+        public static void UpdateUserCoins(long userId, long newCoins)
+        {
+            try
+            {
+                using (var connection = new NpgsqlConnection(DataConnectionString))
+                {
+                    connection.Open();
+                    var updateUserCoinsCommand = new NpgsqlCommand("UPDATE Users SET Coins = @newCoins WHERE Id = @userId", connection);
+                    updateUserCoinsCommand.Parameters.AddWithValue("@newCoins", newCoins);
+                    updateUserCoinsCommand.Parameters.AddWithValue("@userId", userId);
+
+                    int rowsAffected = updateUserCoinsCommand.ExecuteNonQuery();
+                    connection.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating user coins: {ex.Message}");
+            }
+        }
+
+
+        public static User GetOpponentForBattle(string requestingUsername)
+        {
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+
+                var getOpponentCommand = $@"
+                SELECT Id, Username, Password, Coins, Name, Bio, Image, Elo, Wins, Losses 
+                FROM Users 
+                WHERE Username != '{requestingUsername}' 
+                ORDER BY RANDOM() 
+                LIMIT 1";
+
+                using (var command = new NpgsqlCommand(getOpponentCommand, connection))
+                using (var reader = command.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        return new User
+                        {
+                            Id = reader.GetInt64(0),
+                            Username = reader.GetString(1),
+                            Password = reader.GetString(2),
+                            Coins = reader.GetInt32(3),
+                            Name = reader.GetString(4),
+                            Bio = reader.IsDBNull(5) ? null : reader.GetString(5),
+                            Image = reader.IsDBNull(6) ? null : reader.GetString(6),
+                            Elo = reader.GetInt32(7),
+                            Wins = reader.GetInt32(8),
+                            Losses = reader.GetInt32(9)
+                        };
+                    }
+                }
+
+                connection.Close();
+            }
+
+            return null;
+        }
+
+
+
+        private static void ExecuteCommand(NpgsqlConnection connection, string commandText)
+        {
+            using (var command = new NpgsqlCommand(commandText, connection))
+            {
+                command.ExecuteNonQuery();
+            }
+        }
 
         public static void ResetDatabase()
         {
@@ -141,48 +257,6 @@ namespace FHTW.Swen1.Swamp.Database
                 CreateTables();
 
                 connection.Close();
-            }
-        }
-
-        
-
-        public bool UserOwnsCard(NpgsqlConnection connection, long userId, string cardId)
-        {
-            var checkCardCommand = $"SELECT COUNT(*) FROM Cards WHERE Id = '{cardId}' AND UserId = {userId}";
-            using (var command = new NpgsqlCommand(checkCardCommand, connection))
-            {
-                var count = Convert.ToInt32(command.ExecuteScalar());
-                return count > 0;
-            }
-        }
-
-        public static void UpdateUserCoins(long userId, long newCoins)
-        {
-            try
-            {
-                using (var connection = new NpgsqlConnection(DataConnectionString))
-                {
-                    connection.Open();
-                    var updateUserCoinsCommand = $"UPDATE Users SET Coins = {newCoins} WHERE Id = {userId}";
-                    using (var command = new NpgsqlCommand(updateUserCoinsCommand, connection))
-                    {
-                        int rowsAffected = command.ExecuteNonQuery();
-                    }
-                    connection.Close();
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error updating user coins: {ex.Message}");
-            }
-        }
-
-
-        private static void ExecuteCommand(NpgsqlConnection connection, string commandText)
-        {
-            using (var command = new NpgsqlCommand(commandText, connection))
-            {
-                command.ExecuteNonQuery();
             }
         }
     }

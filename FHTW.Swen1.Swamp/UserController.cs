@@ -64,13 +64,14 @@ using Npgsql;
 
         public User GetUserByUsername(string username)
         {
-     
             using (var connection = new NpgsqlConnection(DataConnectionString))
             {
                 connection.Open();
 
-                var getUserCommand = $"SELECT * FROM Users WHERE Username = '{username}'";
-                var reader = new NpgsqlCommand(getUserCommand, connection).ExecuteReader();
+                var getUserCommand = new NpgsqlCommand("SELECT * FROM Users WHERE Username = @username", connection);
+                getUserCommand.Parameters.AddWithValue("@username", username);
+
+                var reader = getUserCommand.ExecuteReader();
 
                 User user = null;
 
@@ -91,7 +92,7 @@ using Npgsql;
             }
         }
 
-        public List<UserStats> GetScoreboard()
+        public List<UserStats> GetUserScoreboard()
         {
             var scoreboard = new List<UserStats>();
             using (var connection = new NpgsqlConnection(DataConnectionString))
@@ -132,8 +133,10 @@ using Npgsql;
             {
                 connection.Open();
 
-                var getUserCommand = $"SELECT Name, Bio, Image FROM Users WHERE Username = '{username}'";
-                var reader = new NpgsqlCommand(getUserCommand, connection).ExecuteReader();
+                var getUserCommand = new NpgsqlCommand("SELECT Name, Bio, Image FROM Users WHERE Username = @username", connection);
+                getUserCommand.Parameters.AddWithValue("@username", username);
+
+                var reader = getUserCommand.ExecuteReader();
 
                 User user = null;
 
@@ -153,14 +156,17 @@ using Npgsql;
             }
         }
 
+
         public UserStats GetUserStats(string username)
         {
             using (var connection = new NpgsqlConnection(DataConnectionString))
             {
                 connection.Open();
 
-                var getUserStatsCommand = $"SELECT Name, Elo, Wins, Losses FROM Users WHERE Username = '{username}'";
-                var reader = new NpgsqlCommand(getUserStatsCommand, connection).ExecuteReader();
+                var getUserStatsCommand = new NpgsqlCommand("SELECT Name, Elo, Wins, Losses FROM Users WHERE Username = @username", connection);
+                getUserStatsCommand.Parameters.AddWithValue("@username", username);
+
+                var reader = getUserStatsCommand.ExecuteReader();
 
                 if (reader.Read())
                 {
@@ -179,18 +185,23 @@ using Npgsql;
             return null;
         }
 
-
         public void UpdateUserProfile(string username, User updatedUser)
         {
             using (var connection = new NpgsqlConnection(DataConnectionString))
             {
                 connection.Open();
 
-                var updateUserCommand = $@"
-                UPDATE Users 
-                SET Name = '{updatedUser.Name}', Bio = '{updatedUser.Bio}', Image = '{updatedUser.Image}' 
-                WHERE Username = '{username}'";
-                ExecuteCommand(connection, updateUserCommand);
+                var updateUserCommand = new NpgsqlCommand(@"
+            UPDATE Users 
+            SET Name = @name, Bio = @bio, Image = @image 
+            WHERE Username = @username", connection);
+
+                updateUserCommand.Parameters.AddWithValue("@name", updatedUser.Name);
+                updateUserCommand.Parameters.AddWithValue("@bio", updatedUser.Bio);
+                updateUserCommand.Parameters.AddWithValue("@image", updatedUser.Image);
+                updateUserCommand.Parameters.AddWithValue("@username", username);
+
+                updateUserCommand.ExecuteNonQuery();
 
                 connection.Close();
             }
@@ -207,19 +218,21 @@ using Npgsql;
                 var user = GetUserByUsername(username);
                 if (user == null) return new List<Card>();
 
-                var getDeckCommand = $"SELECT Cards.* FROM Cards INNER JOIN Decks ON Cards.Id = Decks.CardId WHERE Decks.UserId = {user.Id}";
+                var getDeckCommand = new NpgsqlCommand(@"SELECT Cards.* FROM Cards INNER JOIN Decks ON Cards.Id = Decks.CardId WHERE Decks.UserId = @userId", connection);
+                getDeckCommand.Parameters.AddWithValue("@userId", user.Id);
+
                 return ExecuteQuery<Card>(connection, getDeckCommand);
             }
         }
 
 
-        public List<Card> GetAllAcquiredCards(string username)
+
+        public List<Card> GetUserAcquiredCards(string username)
         {
             if (string.IsNullOrEmpty(username))
             {
                 return new List<Card>();
             }
-
 
             using (var connection = new NpgsqlConnection(DataConnectionString))
             {
@@ -232,22 +245,26 @@ using Npgsql;
                     return new List<Card>();
                 }
 
-                var getCardsCommand = $"SELECT * FROM Cards WHERE UserId = {user.Id}";
+                NpgsqlCommand getCardsCommand = new NpgsqlCommand("SELECT * FROM Cards WHERE UserId = @userId", connection);
+                getCardsCommand.Parameters.AddWithValue("@userId", user.Id);
+
                 return ExecuteQuery<Card>(connection, getCardsCommand);
             }
         }
 
-
         private static bool UserExists(NpgsqlConnection connection, string username)
         {
-            var query = $"SELECT COUNT(*) FROM Users WHERE Username = '{username}'";
+            var query = "SELECT COUNT(*) FROM Users WHERE Username = @username";
 
             using (var command = new NpgsqlCommand(query, connection))
             {
+                command.Parameters.AddWithValue("@username", username);
+
                 var count = Convert.ToInt32(command.ExecuteScalar());
                 return count > 0;
             }
         }
+
 
         public string ConfigureUserDeck(string username, List<string> cardIds)
         {
@@ -265,16 +282,19 @@ using Npgsql;
                 {
                     return "401 Access token is missing or invalid";
                 }
-                    
+
                 var cardsBelongToUser = cardIds.All(cardId => UserOwnsCard(connection, user.Id, cardId));
                 if (!cardsBelongToUser)
                 {
                     return "403 At least one of the provided cards does not belong to the user or is not available";
                 }
+
                 foreach (var cardId in cardIds)
                 {
-                    var insertDeckCommand = $"INSERT INTO Decks (UserId, CardId) VALUES ({user.Id}, '{cardId}')";
-                    ExecuteCommand(connection, insertDeckCommand);
+                    var insertDeckCommand = new NpgsqlCommand("INSERT INTO Decks (UserId, CardId) VALUES (@userId, @cardId)", connection);
+                    insertDeckCommand.Parameters.AddWithValue("@userId", user.Id);
+                    insertDeckCommand.Parameters.AddWithValue("@cardId", cardId);
+                    insertDeckCommand.ExecuteNonQuery();
                 }
 
                 connection.Close();
@@ -283,15 +303,20 @@ using Npgsql;
             return "200 The deck has been successfully configured";
         }
 
+
         private bool UserOwnsCard(NpgsqlConnection connection, long userId, string cardId)
         {
-            var checkCardCommand = $"SELECT COUNT(*) FROM Cards WHERE Id = '{cardId}' AND UserId = {userId}";
+            var checkCardCommand = "SELECT COUNT(*) FROM Cards WHERE Id = @cardId AND UserId = @userId";
             using (var command = new NpgsqlCommand(checkCardCommand, connection))
             {
+                command.Parameters.AddWithValue("@cardId", cardId);
+                command.Parameters.AddWithValue("@userId", userId);
+
                 var count = Convert.ToInt32(command.ExecuteScalar());
                 return count > 0;
             }
         }
+
 
 
         private static void ExecuteCommand(NpgsqlConnection connection, string commandText)
@@ -301,44 +326,44 @@ using Npgsql;
                 command.ExecuteNonQuery();
             }
         }
-                
 
-        private List<T> ExecuteQuery<T>(NpgsqlConnection connection, string commandText) where T : new()
+
+        private List<T> ExecuteQuery<T>(NpgsqlConnection connection, NpgsqlCommand command) where T : new()
         {
             var result = new List<T>();
             var properties = typeof(T).GetProperties().ToDictionary(p => p.Name.ToLower(), p => p);
 
-            using (var command = new NpgsqlCommand(commandText, connection))
+            command.Connection = connection;
+
+            using (var reader = command.ExecuteReader())
             {
-                using (var reader = command.ExecuteReader())
+                while (reader.Read())
                 {
-                    while (reader.Read())
+                    var item = new T();
+                    for (int i = 0; i < reader.FieldCount; i++)
                     {
-                        var item = new T();
-                        for (int i = 0; i < reader.FieldCount; i++)
+                        var columnName = reader.GetName(i).ToLower();
+                        if (properties.TryGetValue(columnName, out var property) && !reader.IsDBNull(i))
                         {
-                            var columnName = reader.GetName(i).ToLower();
-                            if (properties.TryGetValue(columnName, out var property) && !reader.IsDBNull(i))
+                            var value = reader.GetValue(i);
+                            if (property.PropertyType == typeof(string) && value is Guid)
                             {
-                                var value = reader.GetValue(i);
-                                if (property.PropertyType == typeof(string) && value is Guid)
-                                {
-                                    value = value.ToString();
-                                }
-                                else if (property.PropertyType != typeof(String) && property.PropertyType.GetInterface(nameof(IConvertible)) != null)
-                                {
-                                    value = Convert.ChangeType(value, property.PropertyType);
-                                }
-                                property.SetValue(item, value);
+                                value = value.ToString();
                             }
+                            else if (property.PropertyType != typeof(String) && property.PropertyType.GetInterface(nameof(IConvertible)) != null)
+                            {
+                                value = Convert.ChangeType(value, property.PropertyType);
+                            }
+                            property.SetValue(item, value);
                         }
-                        result.Add(item);
                     }
+                    result.Add(item);
                 }
             }
 
             return result;
         }
+
 
 
 

@@ -17,6 +17,10 @@ namespace FHTW.Swen1.Swamp
         public string Name { get; set; }
         public string Bio { get; set; }
         public string Image { get; set; }
+        public int Elo { get; set; } = 100;
+        public int Wins { get; set; }
+        public int Losses { get; set; }
+        
 
         public User()
         {
