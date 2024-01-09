@@ -1,4 +1,5 @@
 ﻿using FHTW.Swen1.Swamp.Database;
+using MTCG_DEMETRY;
 using Npgsql;
     using System;
     using System.Collections.Generic;
@@ -63,11 +64,7 @@ using Npgsql;
 
         public User GetUserByUsername(string username)
         {
-            if (userCache.TryGetValue(username, out User cachedUser))
-            {
-                return cachedUser;
-            }
-
+     
             using (var connection = new NpgsqlConnection(DataConnectionString))
             {
                 connection.Open();
@@ -84,10 +81,8 @@ using Npgsql;
                         Id = reader.GetInt64(0),
                         Username = reader.GetString(1),
                         Password = reader.GetString(2),
-                        Coins = reader.IsDBNull(3) ? 0 : reader.GetInt32(3) // Überprüfen auf NULL und Standardwert zuweisen
+                        Coins = reader.IsDBNull(3) ? 0 : reader.GetInt32(3)
                     };
-
-                    userCache[username] = user; // Benutzer im Cache speichern
                 }
 
                 connection.Close();
@@ -95,6 +90,113 @@ using Npgsql;
                 return user;
             }
         }
+
+        public List<UserStats> GetScoreboard()
+        {
+            var scoreboard = new List<UserStats>();
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+
+                var getScoreboardCommand = "SELECT Name, Elo, Wins, Losses FROM Users WHERE Name IS NOT NULL AND Name <> '' ORDER BY Elo DESC";
+                using (var command = new NpgsqlCommand(getScoreboardCommand, connection))
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        var name = reader.IsDBNull(0) ? string.Empty : reader.GetString(0);
+                        var elo = reader.GetInt32(1);
+                        var wins = reader.GetInt32(2);
+                        var losses = reader.GetInt32(3);
+
+                        scoreboard.Add(new UserStats
+                        {
+                            Name = name,
+                            Elo = elo,
+                            Wins = wins,
+                            Losses = losses
+                        });
+                    }
+                }
+
+                connection.Close();
+            }
+
+            return scoreboard;
+        }
+
+
+        public User GetUserProfile(string username)
+        {
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+
+                var getUserCommand = $"SELECT Name, Bio, Image FROM Users WHERE Username = '{username}'";
+                var reader = new NpgsqlCommand(getUserCommand, connection).ExecuteReader();
+
+                User user = null;
+
+                if (reader.Read())
+                {
+                    user = new User
+                    {
+                        Name = reader.IsDBNull(0) ? null : reader.GetString(0),
+                        Bio = reader.IsDBNull(1) ? null : reader.GetString(1),
+                        Image = reader.IsDBNull(2) ? null : reader.GetString(2)
+                    };
+                }
+
+                connection.Close();
+
+                return user;
+            }
+        }
+
+        public UserStats GetUserStats(string username)
+        {
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+
+                var getUserStatsCommand = $"SELECT Name, Elo, Wins, Losses FROM Users WHERE Username = '{username}'";
+                var reader = new NpgsqlCommand(getUserStatsCommand, connection).ExecuteReader();
+
+                if (reader.Read())
+                {
+                    return new UserStats
+                    {
+                        Name = reader.GetString(0),
+                        Elo = reader.GetInt32(1),
+                        Wins = reader.GetInt32(2),
+                        Losses = reader.GetInt32(3)
+                    };
+                }
+
+                connection.Close();
+            }
+
+            return null;
+        }
+
+
+        public void UpdateUserProfile(string username, User updatedUser)
+        {
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+
+                var updateUserCommand = $@"
+                UPDATE Users 
+                SET Name = '{updatedUser.Name}', Bio = '{updatedUser.Bio}', Image = '{updatedUser.Image}' 
+                WHERE Username = '{username}'";
+                ExecuteCommand(connection, updateUserCommand);
+
+                connection.Close();
+            }
+        }
+
+
 
         public List<Card> GetUserDeck(string username)
         {
@@ -115,7 +217,6 @@ using Npgsql;
         {
             if (string.IsNullOrEmpty(username))
             {
-                Console.WriteLine("Username is null or empty. Returning empty card list.");
                 return new List<Card>();
             }
 
@@ -128,7 +229,6 @@ using Npgsql;
 
                 if (user == null)
                 {
-                    Console.WriteLine($"User {username} not found. Returning empty card list.");
                     return new List<Card>();
                 }
 

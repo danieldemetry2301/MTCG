@@ -31,7 +31,13 @@ namespace FHTW.Swen1.Swamp.Database
                         Id SERIAL PRIMARY KEY,
                         Username VARCHAR(255),
                         Password VARCHAR(255),
-                        Coins INTEGER NOT NULL
+                        Coins INTEGER NOT NULL,
+                        Name VARCHAR(255),
+                        Bio TEXT,
+                        Image TEXT,
+                        Elo INTEGER NOT NULL DEFAULT 0,
+                        Wins INTEGER NOT NULL DEFAULT 0,
+                        Losses INTEGER NOT NULL DEFAULT 0
                     )");
 
                 ExecuteCommand(connection, @"

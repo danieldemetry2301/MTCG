@@ -14,6 +14,9 @@ namespace FHTW.Swen1.Swamp
         public List<Package> Packages { get; set; } = new List<Package>();
         public int Coins { get; set; } = 20;
         public string AccessToken { get; set; }
+        public string Name { get; set; }
+        public string Bio { get; set; }
+        public string Image { get; set; }
 
         public User()
         {

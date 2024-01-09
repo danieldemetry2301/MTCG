@@ -25,6 +25,14 @@ namespace FHTW.Swen1.Swamp
             {
                 HandleUserRegistration(e);
             }
+            else if (path.StartsWith("/users/") && e.Method == "GET")
+            {
+                HandleGetUserProfile(e);
+            }
+            else if (path.StartsWith("/users/") && e.Method == "PUT")
+            {
+                HandleUpdateUserProfile(e);
+            }
             else if (path.StartsWith("/sessions") && e.Method == "POST")
             {
                 HandleUserLogin(e);
@@ -49,11 +57,110 @@ namespace FHTW.Swen1.Swamp
             {
                 HandleUpdateDeck(e);
             }
+            else if (path.StartsWith("/stats") && e.Method == "GET")
+            {
+                HandleGetUserStats(e);
+            }
+            else if (path.StartsWith("/scoreboard") && e.Method == "GET")
+            {
+                HandleGetScoreboard(e);
+            }
             else
             {
                 e.Reply(404, "Not Found");
             }
         }
+
+        private void HandleGetScoreboard(HttpSvrEventArgs e)
+        {
+            var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
+            var username = TokenHelper.ExtractUsernameFromToken(token);
+
+            if (string.IsNullOrEmpty(username))
+            {
+                e.Reply(401, "Access token is missing or invalid");
+                return;
+            }
+
+            var scoreboard = userController.GetScoreboard();
+            var scoreboardJson = JsonConvert.SerializeObject(scoreboard, Formatting.Indented);
+            e.Reply(200, scoreboardJson);
+        }
+
+        private void HandleGetUserStats(HttpSvrEventArgs e)
+        {
+            var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
+            var username = TokenHelper.ExtractUsernameFromToken(token);
+
+            if (string.IsNullOrEmpty(username))
+            {
+                e.Reply(401, "Access token is missing or invalid");
+                return;
+            }
+
+            var userStats = userController.GetUserStats(username);
+
+            if (userStats != null)
+            {
+                var statsJson = JsonConvert.SerializeObject(userStats, Formatting.Indented);
+                e.Reply(200, statsJson);
+            }
+        }
+
+        private void HandleGetUserProfile(HttpSvrEventArgs e)
+        {
+            var requestedUsername = e.Path.Split('/')[2];
+
+            var user = userController.GetUserProfile(requestedUsername);
+            if (user == null)
+            {
+                e.Reply(404, "User not found");
+                return;
+            }
+
+            var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
+            var tokenUsername = TokenHelper.ExtractUsernameFromToken(token);
+
+            // Prüfen, ob das Token gültig ist und zum angeforderten Benutzernamen passt
+            if (string.IsNullOrEmpty(tokenUsername) || tokenUsername != requestedUsername)
+            {
+                e.Reply(401, "Access token is missing or invalid");
+                return;
+            }
+
+            var userProfile = new { user.Name, user.Bio, user.Image };
+            var userProfileJson = JsonConvert.SerializeObject(userProfile, Formatting.Indented);
+            e.Reply(200, userProfileJson);
+        }
+
+
+
+
+        private void HandleUpdateUserProfile(HttpSvrEventArgs e)
+        {
+            var username = e.Path.Split('/')[2];
+            var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
+
+            if (TokenHelper.ExtractUsernameFromToken(token) != username)
+            {
+                e.Reply(401, "Access token is missing or invalid");
+                return;
+            }
+
+            var updatedUser = JsonConvert.DeserializeObject<User>(e.Payload);
+            var userToUpdate = userController.GetUserByUsername(username);
+
+            if (userToUpdate == null)
+            {
+                e.Reply(404, "User not found");
+                return;
+            }
+
+            userController.UpdateUserProfile(username, updatedUser);
+
+            e.Reply(200, "User profile updated successfully");
+        }
+
 
         private void HandleUpdateDeck(HttpSvrEventArgs e)
         {
