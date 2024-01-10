@@ -1,41 +1,46 @@
 ﻿using FHTW.Swen1.Swamp;
 namespace FHTW.Swen1.Swamp
 {
-    public class BattleController
+    using System;
+    using System.Collections.Generic;
+
+    namespace FHTW.Swen1.Swamp
     {
-        private UserController userController;
+        public class BattleController
+        {
+            private UserController userController = new UserController();
+
             public BattleLog StartBattle(User playerA, User playerB)
             {
-               
-            playerA.Deck = userController.GetUserDeck(playerA.Username);
-            playerB.Deck = userController.GetUserDeck(playerB.Username);
-
-            if (playerA.Deck.Count == 0 || playerB.Deck.Count == 0)
-                {
-                    throw new InvalidOperationException("One or both players have an empty deck.");
-                }
+                playerA.Deck = userController.GetUserDeck(playerA.Username);
+                playerB.Deck = userController.GetUserDeck(playerB.Username);
 
                 var battleLog = new BattleLog();
                 int roundCounter = 0;
 
                 while (playerA.Deck.Count > 0 && playerB.Deck.Count > 0 && roundCounter < 100)
                 {
+                    roundCounter++;
                     var cardA = SelectRandomCard(playerA.Deck);
                     var cardB = SelectRandomCard(playerB.Deck);
 
                     var roundResult = DetermineRoundResult(cardA, cardB, playerA.Username, playerB.Username);
+                    roundResult.RoundNumber = roundCounter;
                     battleLog.Rounds.Add(roundResult);
 
                     if (roundResult.Winner == playerA.Username)
                     {
-                        TransferCard(playerB, playerA, cardB);
+                        playerB.Deck.Remove(cardB);
+                        playerA.Deck.Add(cardB);
                     }
                     else if (roundResult.Winner == playerB.Username)
                     {
-                        TransferCard(playerA, playerB, cardA);
+                        playerA.Deck.Remove(cardA);
+                        playerB.Deck.Add(cardA);
                     }
 
-                    roundCounter++;
+                    roundResult.PlayerACardCount = playerA.Deck.Count;
+                    roundResult.PlayerBCardCount = playerB.Deck.Count;
                 }
 
                 battleLog.Result = new BattleResult
@@ -46,93 +51,83 @@ namespace FHTW.Swen1.Swamp
 
                 return battleLog;
             }
-        
 
-
-
-        private Card SelectRandomCard(List<Card> deck)
-        {
-            var random = new Random();
-            int randomIndex = random.Next(deck.Count);
-            return deck[randomIndex];
-        }
-
-        private void TransferCard(User fromUser, User toUser, Card card)
-        {
-            fromUser.Deck.Remove(card);
-            toUser.Deck.Add(card);
-        }
-
-        private BattleRound DetermineRoundResult(Card cardA, Card cardB, string playerAName, string playerBName)
-        {
-            string winner = null;
-            string reason = "";
-
-            double damageA = CalculateEffectiveDamage(cardA, cardB);
-            double damageB = CalculateEffectiveDamage(cardB, cardA);
-
-            if (damageA > damageB)
+            private Card SelectRandomCard(List<Card> deck)
             {
-                winner = playerAName;
-                reason = $"{cardA.Name} defeats {cardB.Name}";
-            }
-            else if (damageB > damageA)
-            {
-                winner = playerBName;
-                reason = $"{cardB.Name} defeats {cardA.Name}";
-            }
-            else
-            {
-                reason = "Draw";
+                var random = new Random();
+                int randomIndex = random.Next(deck.Count);
+                return deck[randomIndex];
             }
 
-            return new BattleRound
+            private void TransferCard(User fromUser, User toUser, Card card)
             {
-                PlayerACard = cardA.Name,
-                PlayerBCard = cardB.Name,
-                Winner = winner,
-                Reason = reason
-            };
-        }
+                fromUser.Deck.Remove(card);
+                toUser.Deck.Add(card);
+            }
 
-        private BattleResult DetermineBattleResult(User playerA, User playerB, int roundsPlayed)
-        {
-            var result = new BattleResult
+            private BattleRound DetermineRoundResult(Card cardA, Card cardB, string playerAName, string playerBName)
             {
-                Winner = playerA.Deck.Count > playerB.Deck.Count ? playerA.Username : playerB.Username,
-                RoundsPlayed = roundsPlayed
-            };
-
-            return result;
-        }
-
-        private double CalculateEffectiveDamage(Card attacker, Card defender)
-        {
-            double damage = attacker.Damage;
-
-            if (attacker.Type == "Spell" || defender.Type == "Spell")
-            {
-                switch (attacker.Element)
+                var roundResult = new BattleRound
                 {
-                    case "Water":
-                        damage *= defender.Element == "Fire" ? 2 : defender.Element == "Normal" ? 0.5 : 1;
-                        break;
-                    case "Fire":
-                        damage *= defender.Element == "Normal" ? 2 : defender.Element == "Water" ? 0.5 : 1;
-                        break;
-                    case "Normal":
-                        damage *= defender.Element == "Water" ? 2 : defender.Element == "Fire" ? 0.5 : 1;
-                        break;
+                    PlayerACard = cardA.Name,
+                    PlayerADamage = cardA.Damage,
+                    PlayerBCard = cardB.Name,
+                    PlayerBDamage = cardB.Damage
+                };
+
+                double damageA = CalculateEffectiveDamage(cardA, cardB);
+                double damageB = CalculateEffectiveDamage(cardB, cardA);
+
+                if (damageA > damageB)
+                {
+                    roundResult.Winner = playerAName;
+                    roundResult.Loser = playerBName;
+                    roundResult.Reason = $"{cardA.Name} defeats {cardB.Name}";
                 }
+                else if (damageB > damageA)
+                {
+                    roundResult.Winner = playerBName;
+                    roundResult.Loser = playerAName;
+                    roundResult.Reason = $"{cardB.Name} defeats {cardA.Name}";
+                }
+                else
+                {
+                    roundResult.Reason = "Draw";
+                }
+
+                return roundResult;
             }
 
-            if (attacker.Name == "Goblin" && defender.Name == "Dragon") damage = 0;
-            if (attacker.Name == "Wizzard" && defender.Name == "Ork") damage = 0;
-            if (attacker.Name == "Knight" && defender.Type == "Spell" && defender.Element == "Water") damage = 0;
-            if (attacker.Name == "Kraken" && defender.Type == "Spell") return attacker.Damage;
-            if (attacker.Name == "FireElves" && defender.Name == "Dragon") return attacker.Damage;
 
-            return damage;
+            private double CalculateEffectiveDamage(Card attacker, Card defender)
+            {
+                double damage = attacker.Damage;
+
+                if (attacker.Name == "Goblin" && defender.Name == "Dragon") return 0;
+                if (attacker.Name == "Wizzard" && defender.Name == "Ork") return 0;
+                if (attacker.Name == "Knight" && defender.Type == "Spell" && defender.Element == "Water") return 0;
+                if (attacker.Name == "Kraken" && defender.Type == "Spell") return attacker.Damage;
+                if (attacker.Name == "FireElves" && defender.Name == "Dragon") return attacker.Damage;
+
+                // Schadensberechnung basierend auf Elementtypen
+                if (attacker.Type == "Spell" || defender.Type == "Spell")
+                {
+                    switch (attacker.Element)
+                    {
+                        case "Water":
+                            damage *= defender.Element == "Fire" ? 2 : defender.Element == "Normal" ? 0.5 : 1;
+                            break;
+                        case "Fire":
+                            damage *= defender.Element == "Normal" ? 2 : defender.Element == "Water" ? 0.5 : 1;
+                            break;
+                        case "Normal":
+                            damage *= defender.Element == "Water" ? 2 : defender.Element == "Fire" ? 0.5 : 1;
+                            break;
+                    }
+                }
+
+                return damage;
+            }
         }
     }
 }

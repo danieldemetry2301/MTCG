@@ -8,44 +8,69 @@ using System.Threading.Tasks;
 namespace MTCG_DEMETRY.Battle
 {
 
-    public class LobbyController
+    using FHTW.Swen1.Swamp;
+    using FHTW.Swen1.Swamp.FHTW.Swen1.Swamp;
+    using System.Collections.Generic;
+    using System.Text;
+
+    namespace MTCG_DEMETRY.Battle
     {
-        private static List<User> waitingUsers = new List<User>();
-        private BattleController battleController = new BattleController();
-
-        public string JoinBattleLobby(User user)
+        public class LobbyController
         {
-            lock (waitingUsers)
+            private static List<User> waitingUsers = new List<User>();
+            private BattleController battleController = new BattleController();
+
+            public string JoinBattleLobby(User user)
             {
-                if (!waitingUsers.Contains(user))
+                lock (waitingUsers)
                 {
-                    waitingUsers.Add(user);
+                    if (!waitingUsers.Contains(user))
+                    {
+                        waitingUsers.Add(user);
+                    }
+
+                    if (waitingUsers.Count >= 2)
+                    {
+                        User playerA = waitingUsers[0];
+                        User playerB = waitingUsers[1];
+                        waitingUsers.RemoveRange(0, 2);
+
+                        BattleLog log = battleController.StartBattle(playerA, playerB);
+                        return FormatBattleLog(log, playerA, playerB);
+                    }
                 }
 
-                if (waitingUsers.Count >= 2)
-                {
-                    User playerA = waitingUsers[0];
-                    User playerB = waitingUsers[1];
-                    waitingUsers.RemoveAt(0);
-                    waitingUsers.RemoveAt(0);
-
-                    BattleLog log = battleController.StartBattle(playerA, playerB);
-                    return FormatBattleLog(log);
-                }
+                return "Warten auf einen weiteren Spieler, um der Lobby beizutreten..\n";
             }
 
-            return "Waiting for another player to join the lobby..\n";
-        }
-
-        private string FormatBattleLog(BattleLog log)
-        {
-            string output = "";
-            foreach (var round in log.Rounds)
+            private string FormatBattleLog(BattleLog log, User playerA, User playerB)
             {
-                output += $"{round.PlayerACard} vs {round.PlayerBCard} - Winner: {round.Winner} ({round.Reason})\n";
+                StringBuilder output = new StringBuilder();
+
+                foreach (var round in log.Rounds)
+                {
+                    output.AppendLine($"/////////////////////////////////");
+                    output.AppendLine($"ROUND {round.RoundNumber}");
+                    output.AppendLine($"{round.PlayerACard} (Damage: {round.PlayerADamage}) vs {round.PlayerBCard} (Damage: {round.PlayerBDamage})");
+                    output.AppendLine("FIGHT!");
+
+                    if (round.Winner != null)
+                    {
+                        output.AppendLine($"The winner of round {round.RoundNumber} is {round.Winner}");
+                    }
+                    else
+                    {
+                        output.AppendLine("It's a draw!");
+                    }
+
+                    output.AppendLine($"{playerA.Username} has now {round.PlayerACardCount} cards, {playerB.Username} has now {round.PlayerBCardCount} cards");
+                    output.AppendLine($"/////////////////////////////////");
+                }
+
+                output.AppendLine($"Final Winner: {log.Result.Winner} after {log.Result.RoundsPlayed} rounds.");
+
+                return output.ToString();
             }
-            output += $"Final Winner: {log.Result.Winner} after {log.Result.RoundsPlayed} rounds.";
-            return output;
         }
     }
 }
