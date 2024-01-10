@@ -9,7 +9,7 @@ namespace FHTW.Swen1.Swamp
         public class BattleController
         {
             private UserController userController = new UserController();
-
+            
             public BattleLog StartBattle(User playerA, User playerB)
             {
                 playerA.Deck = userController.GetUserDeck(playerA.Username);
@@ -105,23 +105,23 @@ namespace FHTW.Swen1.Swamp
 
                 if (attacker.Name == "Goblin" && defender.Name == "Dragon") return 0;
                 if (attacker.Name == "Wizzard" && defender.Name == "Ork") return 0;
-                if (attacker.Name == "Knight" && defender.Type == "Spell" && defender.Element == "Water") return 0;
-                if (attacker.Name == "Kraken" && defender.Type == "Spell") return attacker.Damage;
+                if (attacker.Name == "Knight" && defender.Name == "Spell" && defender.Name == "Water") return 0;
+                if (attacker.Name == "Kraken" && defender.Name == "Spell") return attacker.Damage;
                 if (attacker.Name == "FireElves" && defender.Name == "Dragon") return attacker.Damage;
 
                 // Schadensberechnung basierend auf Elementtypen
-                if (attacker.Type == "Spell" || defender.Type == "Spell")
+                if (attacker.Name == "Spell" || defender.Name == "Spell")
                 {
-                    switch (attacker.Element)
+                    switch (attacker.Name)
                     {
                         case "Water":
-                            damage *= defender.Element == "Fire" ? 2 : defender.Element == "Normal" ? 0.5 : 1;
+                            damage *= defender.Name == "Fire" ? 2 : defender.Name == "Normal" ? 0.5 : 1;
                             break;
                         case "Fire":
-                            damage *= defender.Element == "Normal" ? 2 : defender.Element == "Water" ? 0.5 : 1;
+                            damage *= defender.Name == "Normal" ? 2 : defender.Name == "Water" ? 0.5 : 1;
                             break;
                         case "Normal":
-                            damage *= defender.Element == "Water" ? 2 : defender.Element == "Fire" ? 0.5 : 1;
+                            damage *= defender.Name == "Water" ? 2 : defender.Name == "Fire" ? 0.5 : 1;
                             break;
                     }
                 }
