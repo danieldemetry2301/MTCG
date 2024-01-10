@@ -97,6 +97,26 @@ namespace FHTW.Swen1.Swamp.Database
             }
         }
 
+        public static void UpdateUserEloAndStats(User user)
+        {
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+
+                var updateUserCommand = new NpgsqlCommand("UPDATE Users SET Elo = @elo, Wins = @wins, Losses = @losses WHERE Username = @username", connection);
+                updateUserCommand.Parameters.AddWithValue("@elo", user.Elo);
+                updateUserCommand.Parameters.AddWithValue("@wins", user.Wins);
+                updateUserCommand.Parameters.AddWithValue("@losses", user.Losses);
+                updateUserCommand.Parameters.AddWithValue("@username", user.Username);
+
+                updateUserCommand.ExecuteNonQuery();
+
+                connection.Close();
+            }
+        }
+
+
+
         public static void InsertPackage(Package package)
         {
             using (var connection = new NpgsqlConnection(DataConnectionString))
@@ -111,10 +131,6 @@ namespace FHTW.Swen1.Swamp.Database
                 connection.Close();
             }
         }
-
-
-
-
 
         public static void InsertCards(List<Card> cards)
         {
@@ -155,8 +171,6 @@ namespace FHTW.Swen1.Swamp.Database
                 connection.Close();
             }
         }
-
-
 
         public bool UserOwnsCard(NpgsqlConnection connection, long userId, string cardId)
         {

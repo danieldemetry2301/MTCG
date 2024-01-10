@@ -103,13 +103,16 @@ namespace FHTW.Swen1.Swamp
             {
                 double damage = attacker.Damage;
 
-                if (attacker.Name == "Goblin" && defender.Name == "Dragon") return 0;
-                if (attacker.Name == "Wizzard" && defender.Name == "Ork") return 0;
-                if (attacker.Name == "Knight" && defender.Name == "Spell" && defender.Name == "Water") return 0;
-                if (attacker.Name == "Kraken" && defender.Name == "Spell") return attacker.Damage;
-                if (attacker.Name == "FireElves" && defender.Name == "Dragon") return attacker.Damage;
+                if (attacker.Name.Contains("Goblin") && defender.Name.Contains("Dragon")) return damage*0;
+                if (attacker.Name.Contains("Wizzard") && defender.Name.Contains("Ork")) return damage*0;
+                if (attacker.Name.Contains("Knight") && defender.Name == "WaterSpell") return damage*0;
+                if (attacker.Name.Contains("Spell")  && defender.Name.Contains("Kraken")) return damage*0;
+                if (attacker.Name.Contains("Dragon") && defender.Name.Contains("FireElves")) return damage*0;
+                if (attacker.Name == ("WaterSpell") && defender.Name == ("FireSpell")) return damage*2;
+                if (attacker.Name == ("FireSpell") && defender.Name == ("WaterSpell")) return damage*0.5;
+                if (attacker.Name == ("FireSpell") && defender.Name == ("RegularSpell")) return damage*0;
+                if (attacker.Name == ("RegularSpell") && !defender.Name.Contains("Water") || !defender.Name.Contains("Fire") || !defender.Name.Contains("Regular")) return damage;
 
-                // Schadensberechnung basierend auf Elementtypen
                 if (attacker.Name == "Spell" || defender.Name == "Spell")
                 {
                     switch (attacker.Name)
