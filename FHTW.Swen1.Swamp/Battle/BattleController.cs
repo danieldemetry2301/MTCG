@@ -67,16 +67,17 @@ namespace FHTW.Swen1.Swamp
 
             private BattleRound DetermineRoundResult(Card cardA, Card cardB, string playerAName, string playerBName)
             {
+                double damageA = CalculateEffectiveDamage(cardA, cardB);
+                double damageB = CalculateEffectiveDamage(cardB, cardA);
+
                 var roundResult = new BattleRound
                 {
                     PlayerACard = cardA.Name,
-                    PlayerADamage = cardA.Damage,
+                    PlayerADamage = damageA, 
                     PlayerBCard = cardB.Name,
-                    PlayerBDamage = cardB.Damage
+                    PlayerBDamage = damageB,
+                    RoundNumber = 0 
                 };
-
-                double damageA = CalculateEffectiveDamage(cardA, cardB);
-                double damageB = CalculateEffectiveDamage(cardB, cardA);
 
                 if (damageA > damageB)
                 {
@@ -112,22 +113,6 @@ namespace FHTW.Swen1.Swamp
                 if (attacker.Name == ("FireSpell") && defender.Name == ("WaterSpell")) return damage*0.5;
                 if (attacker.Name == ("FireSpell") && defender.Name == ("RegularSpell")) return damage*0;
                 if (attacker.Name == ("RegularSpell") && !defender.Name.Contains("Water") || !defender.Name.Contains("Fire") || !defender.Name.Contains("Regular")) return damage;
-
-                if (attacker.Name == "Spell" || defender.Name == "Spell")
-                {
-                    switch (attacker.Name)
-                    {
-                        case "Water":
-                            damage *= defender.Name == "Fire" ? 2 : defender.Name == "Normal" ? 0.5 : 1;
-                            break;
-                        case "Fire":
-                            damage *= defender.Name == "Normal" ? 2 : defender.Name == "Water" ? 0.5 : 1;
-                            break;
-                        case "Normal":
-                            damage *= defender.Name == "Water" ? 2 : defender.Name == "Fire" ? 0.5 : 1;
-                            break;
-                    }
-                }
 
                 return damage;
             }

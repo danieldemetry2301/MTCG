@@ -57,7 +57,7 @@ namespace MTCG_DEMETRY.Battle
                 {
                     output.AppendLine($"/////////////////////////////////");
                     output.AppendLine($"ROUND {round.RoundNumber}");
-                    output.AppendLine($"{round.PlayerACard} (Damage: {round.PlayerADamage}) vs {round.PlayerBCard} (Damage: {round.PlayerBDamage})");
+                    output.AppendLine($"{playerA.Username}, {round.PlayerACard} (Damage: {round.PlayerADamage}) vs {playerB.Username}, {round.PlayerBCard} (Damage: {round.PlayerBDamage})");
                     output.AppendLine("FIGHT!");
 
                     if (round.Winner != null)
