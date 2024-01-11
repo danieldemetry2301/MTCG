@@ -413,6 +413,78 @@ namespace FHTW.Swen1.Swamp.Database
             return null;
         }
 
+        public static User GetUserByCardId(string cardId)
+        {
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+
+                var command = new NpgsqlCommand("SELECT Users.* FROM Users INNER JOIN Cards ON Users.Id = Cards.UserId WHERE Cards.Id = @cardId", connection);
+                command.Parameters.AddWithValue("@cardId", cardId);
+
+                var reader = command.ExecuteReader();
+                if (reader.Read())
+                {
+                    return new User
+                    {
+                        Id = reader.GetInt64(0),
+                        Username = reader.GetString(1),
+                        Password = reader.GetString(2),
+                        // ... Weitere User-Attribute auslesen
+                    };
+                }
+
+                connection.Close();
+            }
+            return null;
+        }
+
+        public static Card GetCardById(string cardId)
+        {
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+
+                var command = new NpgsqlCommand("SELECT * FROM Cards WHERE Id = @cardId", connection);
+                command.Parameters.AddWithValue("@cardId", cardId);
+
+                var reader = command.ExecuteReader();
+                if (reader.Read())
+                {
+                    return new Card
+                    {
+                        Id = reader.GetString(0),
+                        Name = reader.GetString(1),
+                        Damage = reader.GetDouble(2),
+                        // ... Weitere Card-Attribute auslesen
+                    };
+                }
+
+                connection.Close();
+            }
+            return null;
+        }
+
+        public static void ExchangeCards(long userId1, long userId2, string cardId1, string cardId2)
+        {
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+
+                var command1 = new NpgsqlCommand("UPDATE Cards SET UserId = @userId WHERE Id = @cardId", connection);
+                command1.Parameters.AddWithValue("@userId", userId2);
+                command1.Parameters.AddWithValue("@cardId", cardId1);
+                command1.ExecuteNonQuery();
+
+                var command2 = new NpgsqlCommand("UPDATE Cards SET UserId = @userId WHERE Id = @cardId", connection);
+                command2.Parameters.AddWithValue("@userId", userId1);
+                command2.Parameters.AddWithValue("@cardId", cardId2);
+                command2.ExecuteNonQuery();
+
+                connection.Close();
+            }
+        }
+
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

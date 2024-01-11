@@ -14,6 +14,7 @@ namespace FHTW.Swen1.Swamp
         private PackageController packageController;
         private List<Package> packages = new List<Package>();
         private LobbyController lobbyController = new LobbyController();
+        private TradingController tradingController = new TradingController();
 
         public Router()
         {
@@ -78,7 +79,21 @@ namespace FHTW.Swen1.Swamp
             }
             else if (path.StartsWith("/tradings") && e.Method == "POST")
             {
-                HandleCreateTradingDeal(e);
+                var pathSegments = path.Split('/');
+                if (pathSegments.Length == 3 && pathSegments[1].Equals("tradings"))
+                {
+                    // /tradings/{tradingid}
+                    HandleExecuteSpecificTradingDeal(e, pathSegments[2]);
+                }
+                else if (pathSegments.Length == 2 && pathSegments[1].Equals("tradings"))
+                {
+                    // /tradings/
+                    HandleCreateTradingDeal(e);
+                }
+                else
+                {
+                    e.Reply(404, "Not Found");
+                }
             }
             else if (path.StartsWith("/tradings") && e.Method == "DELETE")
             {
@@ -124,7 +139,7 @@ namespace FHTW.Swen1.Swamp
             }
 
             DatabaseHelper.DeleteTradingDeal(dealId);
-            e.Reply(200, "Trading deal successfully deleted");
+            e.Reply(201, "Trading deal successfully deleted");
         }
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -133,6 +148,7 @@ namespace FHTW.Swen1.Swamp
         private void HandleCreateTradingDeal(HttpSvrEventArgs e)
         {
             var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
+
             if (string.IsNullOrEmpty(token))
             {
                 e.Reply(401, "Access token is missing or invalid");
@@ -140,21 +156,60 @@ namespace FHTW.Swen1.Swamp
             }
 
             var tradingDeal = JsonConvert.DeserializeObject<TradingDeal>(e.Payload);
-            var result = new TradingController().CreateTradingDeal(token, tradingDeal);
+            var result = tradingController.CreateTradingDeal(token, tradingDeal);
 
             if (result.StartsWith("201"))
             {
-                e.Reply(201, result);
+                e.Reply(201, "Trading deal successfully created");
+            }
+            else if (result.StartsWith("401"))
+            {
+                e.Reply(401, "Access token is missing or invalid");
             }
             else if (result.StartsWith("403"))
             {
-                e.Reply(403, result);
+                e.Reply(403, "The deal contains a card that is not owned by the user or locked in the deck.");
             }
             else if (result.StartsWith("409"))
             {
-                e.Reply(409, result);
+                e.Reply(409, "A deal with this deal ID already exists");
             }
         }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        private void HandleExecuteSpecificTradingDeal(HttpSvrEventArgs e, string dealId)
+        {
+            var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
+
+            if (string.IsNullOrEmpty(token))
+            {
+                e.Reply(401, "Access token is missing or invalid");
+                return;
+            }
+
+            var offeredCardId = e.Payload.Trim('"');
+            if (string.IsNullOrEmpty(offeredCardId))
+            {
+                e.Reply(400, "Bad Request: Invalid card ID.");
+                return;
+            }
+
+            var result = tradingController.ExecuteTradingDeal(token, dealId, offeredCardId);
+            if (result.StartsWith("200"))
+            {
+                e.Reply(200, "Trading deal successfully executed.");
+            }
+            else
+            {
+                // Extrahieren Sie den Statuscode aus der Antwort
+                int statusCode = int.Parse(result.Substring(0, 3));
+                string message = result.Substring(4);
+                e.Reply(statusCode, message);
+            }
+        }
+
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

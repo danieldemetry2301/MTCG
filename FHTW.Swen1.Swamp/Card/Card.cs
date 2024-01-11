@@ -15,6 +15,8 @@ namespace FHTW.Swen1.Swamp
 
         public long UserId { get; set; }
 
+        public string Type { get; set; }
+
         public Card()
         {
         }
