@@ -1,4 +1,5 @@
-﻿using Npgsql;
+﻿using MTCG_DEMETRY;
+using Npgsql;
 using NpgsqlTypes;
 using System;
 using System.Collections.Generic;
@@ -6,12 +7,12 @@ using System.IO;
 
 namespace FHTW.Swen1.Swamp.Database
 {
-    public partial class DatabaseHelper
+    public class DatabaseHelper
     {
-        private const string DatabaseFileName = "mtcg";
         private const string DataConnectionString = "Host=localhost;Port=5432;Username=postgres;Password=admin;Database=mtcg";
-        private static UserController userController;
 
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         public static void CreateDatabase()
         {
             using (var connection = new NpgsqlConnection(DataConnectionString))
@@ -20,6 +21,9 @@ namespace FHTW.Swen1.Swamp.Database
                 connection.Close();
             }
         }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         public static void CreateTables()
         {
@@ -66,10 +70,78 @@ namespace FHTW.Swen1.Swamp.Database
                         PRIMARY KEY (UserId, CardId)
                     )");
 
+                ExecuteCommand(connection, @"
+                    CREATE TABLE IF NOT EXISTS TradingDeals (
+                        Id TEXT PRIMARY KEY,
+                        CardToTrade TEXT NOT NULL,
+                        Type TEXT NOT NULL,
+                        MinimumDamage DOUBLE PRECISION NOT NULL,
+                        FOREIGN KEY (CardToTrade) REFERENCES Cards(Id)
+                    )");
+
                 connection.Close();
             }
         }
 
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        public static void InsertTradingDeal(TradingDeal deal)
+        {
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+                var command = new NpgsqlCommand("INSERT INTO TradingDeals (Id, CardToTrade, Type, MinimumDamage) VALUES (@id, @cardToTrade, @type, @minimumDamage)", connection);
+
+                command.Parameters.AddWithValue("@id", deal.Id);
+                command.Parameters.AddWithValue("@cardToTrade", deal.CardToTrade);
+                command.Parameters.AddWithValue("@type", deal.Type);
+                command.Parameters.AddWithValue("@minimumDamage", deal.MinimumDamage);
+
+                command.ExecuteNonQuery();
+
+                connection.Close();
+            }
+        }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        public static bool TradingDealExists(string dealId)
+        {
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+                var command = new NpgsqlCommand("SELECT COUNT(*) FROM TradingDeals WHERE Id = @id", connection);
+
+                command.Parameters.AddWithValue("@id", dealId);
+
+                var count = Convert.ToInt32(command.ExecuteScalar());
+                connection.Close();
+                return count > 0;
+            }
+        }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        public static bool GetUserDeck(long userId, string cardId)
+        {
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+                var command = new NpgsqlCommand("SELECT COUNT(*) FROM Decks WHERE UserId = @userId AND CardId = @cardId", connection);
+                command.Parameters.AddWithValue("@userId", userId);
+                command.Parameters.AddWithValue("@cardId", cardId);
+
+                var count = Convert.ToInt32(command.ExecuteScalar());
+                connection.Close();
+                return count > 0;
+
+            }
+        }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         public static void InsertUser(User user)
         {
@@ -97,6 +169,8 @@ namespace FHTW.Swen1.Swamp.Database
             }
         }
 
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         public static void UpdateUserEloAndStats(User user)
         {
             using (var connection = new NpgsqlConnection(DataConnectionString))
@@ -115,7 +189,8 @@ namespace FHTW.Swen1.Swamp.Database
             }
         }
 
-
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         public static void InsertPackage(Package package)
         {
@@ -132,6 +207,86 @@ namespace FHTW.Swen1.Swamp.Database
             }
         }
 
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        public static void DeleteTradingDeal(string dealId)
+        {
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+
+                var command = new NpgsqlCommand("DELETE FROM TradingDeals WHERE Id = @id", connection);
+                command.Parameters.AddWithValue("@id", dealId);
+
+                command.ExecuteNonQuery();
+
+                connection.Close();
+            }
+        }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        public static TradingDeal GetTradingDealById(string dealId)
+        {
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+
+                var command = new NpgsqlCommand("SELECT Id, CardToTrade, Type, MinimumDamage FROM TradingDeals WHERE Id = @id", connection);
+                command.Parameters.AddWithValue("@id", dealId);
+
+                using (var reader = command.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        return new TradingDeal
+                        {
+                            Id = reader.GetString(0),
+                            CardToTrade = reader.GetString(1),
+                            Type = reader.GetString(2),
+                            MinimumDamage = reader.GetDouble(3)
+                        };
+                    }
+                }
+
+                connection.Close();
+            }
+
+            return null;
+        }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        public static List<TradingDeal> GetTradingDeals()
+        {
+            var tradingDeals = new List<TradingDeal>();
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+                var command = new NpgsqlCommand("SELECT Id, CardToTrade, Type, MinimumDamage FROM TradingDeals", connection);
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        var deal = new TradingDeal
+                        {
+                            Id = reader.GetString(0),
+                            CardToTrade = reader.GetString(1),
+                            Type = reader.GetString(2),
+                            MinimumDamage = reader.GetDouble(3)
+                        };
+                        tradingDeals.Add(deal);
+                    }
+                }
+                connection.Close();
+            }
+            return tradingDeals;
+        }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         public static void InsertCards(List<Card> cards)
         {
             using (var connection = new NpgsqlConnection(DataConnectionString))
@@ -153,6 +308,8 @@ namespace FHTW.Swen1.Swamp.Database
             }
         }
 
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         public static void AcquireCards(long userId, List<Card> cards)
         {
             using (var connection = new NpgsqlConnection(DataConnectionString))
@@ -172,20 +329,26 @@ namespace FHTW.Swen1.Swamp.Database
             }
         }
 
-        public bool UserOwnsCard(NpgsqlConnection connection, long userId, string cardId)
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        public static bool UserOwnsCard(long userId, string cardId)
         {
-            var checkCardCommand = "SELECT COUNT(*) FROM Cards WHERE Id = @cardId AND UserId = @userId";
-            using (var command = new NpgsqlCommand(checkCardCommand, connection))
+            using (var connection = new NpgsqlConnection(DataConnectionString))
             {
+                connection.Open();
+                var command = new NpgsqlCommand("SELECT COUNT(*) FROM Cards WHERE Id = @cardId AND UserId = @userId", connection);
                 command.Parameters.AddWithValue("@cardId", cardId);
                 command.Parameters.AddWithValue("@userId", userId);
 
                 var count = Convert.ToInt32(command.ExecuteScalar());
+                connection.Close();
                 return count > 0;
             }
         }
 
-
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         public static void UpdateUserCoins(long userId, long newCoins)
         {
             try
@@ -207,6 +370,8 @@ namespace FHTW.Swen1.Swamp.Database
             }
         }
 
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         public static User GetOpponentForBattle(string requestingUsername)
         {
@@ -248,7 +413,8 @@ namespace FHTW.Swen1.Swamp.Database
             return null;
         }
 
-
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         private static void ExecuteCommand(NpgsqlConnection connection, string commandText)
         {
@@ -258,6 +424,8 @@ namespace FHTW.Swen1.Swamp.Database
             }
         }
 
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         public static void ResetDatabase()
         {
             using (var connection = new NpgsqlConnection(DataConnectionString))
@@ -268,6 +436,7 @@ namespace FHTW.Swen1.Swamp.Database
                 ExecuteCommand(connection, "DROP TABLE IF EXISTS Packages CASCADE");
                 ExecuteCommand(connection, "DROP TABLE IF EXISTS Users CASCADE");
                 ExecuteCommand(connection, "DROP TABLE IF EXISTS Decks CASCADE");
+                ExecuteCommand(connection, "DROP TABLE IF EXISTS TradingDeals CASCADE");
                 CreateTables();
 
                 connection.Close();

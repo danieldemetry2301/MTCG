@@ -1,4 +1,5 @@
 ﻿using FHTW.Swen1.Swamp.Database;
+using MTCG_DEMETRY;
 using MTCG_DEMETRY.Battle;
 using MTCG_DEMETRY.Battle.MTCG_DEMETRY.Battle;
 using Newtonsoft.Json;
@@ -12,7 +13,6 @@ namespace FHTW.Swen1.Swamp
         private UserController userController = new UserController();
         private PackageController packageController;
         private List<Package> packages = new List<Package>();
-        private DatabaseHelper databaseHelper;
         private LobbyController lobbyController = new LobbyController();
 
         public Router()
@@ -72,33 +72,117 @@ namespace FHTW.Swen1.Swamp
             {
                 HandleJoinBattleLobby(e);
             }
+            else if (path.StartsWith("/tradings") && e.Method == "GET")
+            {
+                HandleGetTradingDeals(e);
+            }
+            else if (path.StartsWith("/tradings") && e.Method == "POST")
+            {
+                HandleCreateTradingDeal(e);
+            }
+            else if (path.StartsWith("/tradings") && e.Method == "DELETE")
+            {
+                HandleDeleteTradingDeal(e);
+            }
             else
             {
                 e.Reply(404, "Not Found");
             }
         }
 
-        /*private void HandleBattle(HttpSvrEventArgs e)
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        private void HandleDeleteTradingDeal(HttpSvrEventArgs e)
         {
             var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
-            var username = TokenHelper.ExtractUsernameFromToken(token);
-
-            if (string.IsNullOrEmpty(username))
+            if (string.IsNullOrEmpty(token))
             {
                 e.Reply(401, "Access token is missing or invalid");
                 return;
             }
 
-            var playerA = userController.GetUserByUsername(username);
-            var playerB = DatabaseHelper.GetOpponentForBattle(username); // Findet einen Gegner, der nicht der anfragende Benutzer ist
+            var username = TokenHelper.ExtractUsernameFromToken(token);
+            var user = userController.GetUserByUsername(username);
+            if (user == null)
+            {
+                e.Reply(401, "Access token is missing or invalid");
+                return;
+            }
 
-            var battleController = new BattleController();
-            var battleLog = battleController.StartBattle(playerA, playerB);
+            var dealId = e.Path.Split('/')[2];
+            if (!DatabaseHelper.TradingDealExists(dealId))
+            {
+                e.Reply(404, "The provided deal ID was not found.");
+                return;
+            }
 
-            var battleLogJson = JsonConvert.SerializeObject(battleLog, Formatting.Indented);
-            e.Reply(200, battleLogJson);
-        }*/
+            var deal = DatabaseHelper.GetTradingDealById(dealId);
+            if (deal == null || !DatabaseHelper.UserOwnsCard(user.Id, deal.CardToTrade))
+            {
+                e.Reply(403, "The deal contains a card that is not owned by the user.");
+                return;
+            }
 
+            DatabaseHelper.DeleteTradingDeal(dealId);
+            e.Reply(200, "Trading deal successfully deleted");
+        }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        private void HandleCreateTradingDeal(HttpSvrEventArgs e)
+        {
+            var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
+            if (string.IsNullOrEmpty(token))
+            {
+                e.Reply(401, "Access token is missing or invalid");
+                return;
+            }
+
+            var tradingDeal = JsonConvert.DeserializeObject<TradingDeal>(e.Payload);
+            var result = new TradingController().CreateTradingDeal(token, tradingDeal);
+
+            if (result.StartsWith("201"))
+            {
+                e.Reply(201, result);
+            }
+            else if (result.StartsWith("403"))
+            {
+                e.Reply(403, result);
+            }
+            else if (result.StartsWith("409"))
+            {
+                e.Reply(409, result);
+            }
+        }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+        private void HandleGetTradingDeals(HttpSvrEventArgs e)
+        {
+            var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
+            if (string.IsNullOrEmpty(token))
+            {
+                e.Reply(401, "Access token is missing or invalid");
+                return;
+            }
+
+            var tradingDeals = DatabaseHelper.GetTradingDeals();
+            if (tradingDeals.Any())
+            {
+                var dealsJson = JsonConvert.SerializeObject(tradingDeals, Formatting.Indented);
+                e.Reply(200, dealsJson);
+            }
+            else
+            {
+                e.Reply(201, "The request was fine, but there are no trading deals available");
+            }
+        }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         private void HandleJoinBattleLobby(HttpSvrEventArgs e)
         {
             var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
@@ -116,6 +200,9 @@ namespace FHTW.Swen1.Swamp
             e.Reply(200, lobbyMessage);
         }
 
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
         private void HandleGetScoreboard(HttpSvrEventArgs e)
         {
             var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
@@ -131,6 +218,9 @@ namespace FHTW.Swen1.Swamp
             var scoreboardJson = JsonConvert.SerializeObject(scoreboard, Formatting.Indented);
             e.Reply(200, scoreboardJson);
         }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         private void HandleGetUserStats(HttpSvrEventArgs e)
         {
@@ -151,6 +241,9 @@ namespace FHTW.Swen1.Swamp
                 e.Reply(200, statsJson);
             }
         }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         private void HandleGetUserProfile(HttpSvrEventArgs e)
         {
@@ -177,9 +270,8 @@ namespace FHTW.Swen1.Swamp
             e.Reply(200, userProfileJson);
         }
 
-
-
-
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         private void HandleUpdateUserProfile(HttpSvrEventArgs e)
         {
             var username = e.Path.Split('/')[2];
@@ -205,6 +297,8 @@ namespace FHTW.Swen1.Swamp
             e.Reply(200, "User profile updated successfully");
         }
 
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         private void HandleUpdateDeck(HttpSvrEventArgs e)
         {
@@ -233,6 +327,8 @@ namespace FHTW.Swen1.Swamp
             }
         }
 
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         private void HandleAcquirePackage(HttpSvrEventArgs e)
         {
             var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
@@ -246,7 +342,7 @@ namespace FHTW.Swen1.Swamp
 
             var result = packageController.AcquirePackage(username);
 
-            
+
             if (result.StartsWith("200"))
             {
                 e.Reply(200, result);
@@ -259,8 +355,11 @@ namespace FHTW.Swen1.Swamp
             {
                 e.Reply(404, result);
             }
-           
+
         }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         private void HandleShowDeck(HttpSvrEventArgs e)
         {
@@ -287,6 +386,9 @@ namespace FHTW.Swen1.Swamp
             }
         }
 
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
         private void HandleUserRegistration(HttpSvrEventArgs e)
         {
             var payload = e.Payload;
@@ -295,6 +397,9 @@ namespace FHTW.Swen1.Swamp
             var result = userController.RegisterUser(user);
             e.Reply(200, result);
         }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         private void HandleUserLogin(HttpSvrEventArgs e)
         {
@@ -314,6 +419,8 @@ namespace FHTW.Swen1.Swamp
             }
         }
 
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         private void HandleCreatePackage(HttpSvrEventArgs e)
         {
             var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
@@ -344,6 +451,8 @@ namespace FHTW.Swen1.Swamp
             }
         }
 
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         private void HandleShowCards(HttpSvrEventArgs e)
         {
             var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
@@ -369,6 +478,8 @@ namespace FHTW.Swen1.Swamp
             }
         }
 
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         private List<Card> DeserializeCardsFromRequest(string payload)
         {
             try
