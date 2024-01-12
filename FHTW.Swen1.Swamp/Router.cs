@@ -83,11 +83,11 @@ namespace FHTW.Swen1.Swamp
                 if (pathSegments.Length == 3 && pathSegments[1].Equals("tradings"))
                 {
                     // /tradings/{tradingid}
-                    HandleExecuteSpecificTradingDeal(e, pathSegments[2]);
+                    HandleExecuteTrade(e, pathSegments[2]);
                 }
                 else if (pathSegments.Length == 2 && pathSegments[1].Equals("tradings"))
                 {
-                    // /tradings/
+                    // /tradings
                     HandleCreateTradingDeal(e);
                 }
                 else
@@ -179,7 +179,7 @@ namespace FHTW.Swen1.Swamp
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        private void HandleExecuteSpecificTradingDeal(HttpSvrEventArgs e, string dealId)
+        private void HandleExecuteTrade(HttpSvrEventArgs e, string dealId)
         {
             var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
 
@@ -203,19 +203,17 @@ namespace FHTW.Swen1.Swamp
             }
             else
             {
-                // Extrahieren Sie den Statuscode aus der Antwort
                 int statusCode = int.Parse(result.Substring(0, 3));
                 string message = result.Substring(4);
                 e.Reply(statusCode, message);
             }
         }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-        private void HandleGetTradingDeals(HttpSvrEventArgs e)
+    private void HandleGetTradingDeals(HttpSvrEventArgs e)
         {
             var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
             if (string.IsNullOrEmpty(token))

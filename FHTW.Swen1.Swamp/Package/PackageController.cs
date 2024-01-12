@@ -60,19 +60,22 @@ namespace FHTW.Swen1.Swamp
                 return "409 Package with the same ID already exists";
             }
 
+            foreach (var card in cards)
+            {
+                // Bestimmen des Typs der Karte basierend auf dem Namen
+                card.Type = card.Name.Contains("Spell") ? "Spell" : "Monster";
+                card.PackageId = packageId;
+            }
+
             var newPackage = new Package { Id = packageId, Cards = cards };
             globalPackages.Add(newPackage);
 
-
-            foreach (var card in cards)
-            {
-                card.PackageId = packageId;
-            }
             DatabaseHelper.InsertPackage(newPackage);
             DatabaseHelper.InsertCards(cards);
 
             return "201 Package and cards successfully created";
         }
+
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

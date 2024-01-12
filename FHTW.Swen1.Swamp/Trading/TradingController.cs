@@ -47,7 +47,7 @@ namespace FHTW.Swen1.Swamp
 
             if (!DatabaseHelper.UserOwnsCard(user.Id, offeredCardId))
             {
-                return "403 The offered card is not owned by the user.";
+                return "403 The offered card is not owned by the user, or the requirements are not met (Type, MinimumDamage), or the offered card is locked in the deck.";
             }
 
             if (DatabaseHelper.GetUserDeck(user.Id, offeredCardId))
@@ -65,23 +65,39 @@ namespace FHTW.Swen1.Swamp
             {
                 return "403 The offered card does not meet the trading criteria.";
             }
-            DatabaseHelper.ExchangeCards(user.Id, dealOwner.Id, offeredCardId, deal.CardToTrade);
 
+            DatabaseHelper.ExchangeCards(user.Id, dealOwner.Id, offeredCardId, deal.CardToTrade);
             DatabaseHelper.DeleteTradingDeal(dealId);
 
             return "200 Trading deal successfully executed.";
         }
 
+
+
         private bool MeetsTradingCriteria(string offeredCardId, TradingDeal deal)
         {
+
+            if (deal == null)
+            {
+                return false;
+            }
+
             var offeredCard = DatabaseHelper.GetCardById(offeredCardId);
+
             if (offeredCard == null)
             {
                 return false;
             }
 
-            return offeredCard.Type == deal.Type && offeredCard.Damage >= deal.MinimumDamage;
+            bool typeMatches = offeredCard.Type.ToLower().Equals(deal.Type.ToLower(), StringComparison.OrdinalIgnoreCase);
+
+            bool damageMeetsRequirement = offeredCard.Damage >= deal.MinimumDamage;
+
+            return typeMatches && damageMeetsRequirement;
         }
+
+
+
 
 
     }

@@ -55,6 +55,7 @@ namespace FHTW.Swen1.Swamp.Database
                         Id TEXT PRIMARY KEY,
                         Name TEXT NOT NULL,
                         Damage DOUBLE PRECISION NOT NULL,
+                        Type TEXT NOT NULL,
                         PackageId TEXT,
                         UserId INTEGER,
                         FOREIGN KEY (UserId) REFERENCES Users(Id),
@@ -295,11 +296,12 @@ namespace FHTW.Swen1.Swamp.Database
 
                 foreach (var card in cards)
                 {
-                    var cardCommand = new NpgsqlCommand("INSERT INTO Cards (Id, Name, Damage, PackageId) VALUES (@id, @name, @damage, @packageId)", connection);
+                    var cardCommand = new NpgsqlCommand("INSERT INTO Cards (Id, Name, Damage, PackageId, Type) VALUES (@id, @name, @damage, @packageId, @type)", connection);
                     cardCommand.Parameters.AddWithValue("@id", card.Id);
                     cardCommand.Parameters.AddWithValue("@name", card.Name);
                     cardCommand.Parameters.AddWithValue("@damage", card.Damage);
                     cardCommand.Parameters.AddWithValue("@packageId", card.PackageId);
+                    cardCommand.Parameters.AddWithValue("@type", card.Type);
 
                     cardCommand.ExecuteNonQuery();
                 }
@@ -456,7 +458,7 @@ namespace FHTW.Swen1.Swamp.Database
                         Id = reader.GetString(0),
                         Name = reader.GetString(1),
                         Damage = reader.GetDouble(2),
-                        // ... Weitere Card-Attribute auslesen
+                        Type = reader.GetString(3)
                     };
                 }
 
