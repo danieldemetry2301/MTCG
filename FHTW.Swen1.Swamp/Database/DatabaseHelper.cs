@@ -143,7 +143,6 @@ namespace FHTW.Swen1.Swamp.Database
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
         public static void InsertUser(User user)
         {
             using (var connection = new NpgsqlConnection(DataConnectionString))
@@ -187,6 +186,36 @@ namespace FHTW.Swen1.Swamp.Database
                 updateUserCommand.ExecuteNonQuery();
 
                 connection.Close();
+            }
+        }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        public static bool PackageExistsWithCardId(List<Card> cards)
+        {
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+
+                foreach (var card in cards)
+                {
+                    var sql = "SELECT COUNT(*) FROM Cards WHERE Id = @cardId AND PackageId IS NOT NULL";
+
+                    using (var command = new NpgsqlCommand(sql, connection))
+                    {
+                        command.Parameters.AddWithValue("@cardId", card.Id);
+
+                        var result = (long)command.ExecuteScalar();
+
+                        if (result == 0)
+                        {
+                            return false;
+                        }
+                    }
+                }
+
+                return true;
             }
         }
 

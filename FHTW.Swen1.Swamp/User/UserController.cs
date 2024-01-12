@@ -300,15 +300,24 @@ using Npgsql;
                 var user = GetUserByUsername(username);
                 if (user == null)
                 {
+                    connection.Close();
                     return "401 Access token is missing or invalid";
                 }
 
-                var cardsBelongToUser = cardIds.All(cardId => UserOwnsCard(connection, user.Id, cardId));
-                if (!cardsBelongToUser)
+                foreach (var cardId in cardIds)
                 {
-                    return "403 At least one of the provided cards does not belong to the user or is not available";
-                }
+                    if (!UserOwnsCard(connection, user.Id, cardId))
+                    {
+                        connection.Close();
+                        return "403 At least one of the provided cards does not belong to the user or is not available";
+                    }
 
+                    if (DatabaseHelper.GetUserDeck(user.Id, cardId))
+                    {
+                        connection.Close();
+                        return "403 At least one of the provided cards is already in the user's deck";
+                    }
+                }
                 foreach (var cardId in cardIds)
                 {
                     var insertDeckCommand = new NpgsqlCommand("INSERT INTO Decks (UserId, CardId) VALUES (@userId, @cardId)", connection);
@@ -322,6 +331,7 @@ using Npgsql;
 
             return "200 The deck has been successfully configured";
         }
+
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

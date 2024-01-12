@@ -30,6 +30,9 @@ namespace FHTW.Swen1.Swamp
             DatabaseHelper.InsertTradingDeal(deal);
             return "201 Trading deal successfully created";
         }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         public string ExecuteTradingDeal(string token, string dealId, string offeredCardId)
         {
             var username = TokenHelper.ExtractUsernameFromToken(token);
@@ -72,7 +75,8 @@ namespace FHTW.Swen1.Swamp
             return "200 Trading deal successfully executed.";
         }
 
-
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         private bool MeetsTradingCriteria(string offeredCardId, TradingDeal deal)
         {
@@ -95,11 +99,6 @@ namespace FHTW.Swen1.Swamp
 
             return typeMatches && damageMeetsRequirement;
         }
-
-
-
-
-
     }
 }
         

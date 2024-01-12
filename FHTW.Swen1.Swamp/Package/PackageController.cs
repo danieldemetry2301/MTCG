@@ -53,6 +53,11 @@ namespace FHTW.Swen1.Swamp
                 return "409 At least one card in the packages already exists";
             }
 
+            if (DatabaseHelper.PackageExistsWithCardId(cards))
+            {
+                return "409 At least one card in the packages already exists";
+            }
+
             var packageId = Guid.NewGuid().ToString();
 
             if (globalPackages.Any(existingPackage => existingPackage.Id == packageId))
@@ -62,7 +67,6 @@ namespace FHTW.Swen1.Swamp
 
             foreach (var card in cards)
             {
-                // Bestimmen des Typs der Karte basierend auf dem Namen
                 card.Type = card.Name.Contains("Spell") ? "Spell" : "Monster";
                 card.PackageId = packageId;
             }
