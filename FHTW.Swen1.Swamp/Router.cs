@@ -1,6 +1,6 @@
 ﻿using FHTW.Swen1.Swamp.Database;
 using MTCG_DEMETRY;
-using MTCG_DEMETRY.Battle;
+
 using MTCG_DEMETRY.Battle.MTCG_DEMETRY.Battle;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;

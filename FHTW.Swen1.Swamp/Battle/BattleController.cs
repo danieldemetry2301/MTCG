@@ -14,6 +14,14 @@ namespace FHTW.Swen1.Swamp
             {
                 playerA.Deck = userController.GetUserDeck(playerA.Username);
                 playerB.Deck = userController.GetUserDeck(playerB.Username);
+                if (playerA.Deck.Count > 0 && playerB.Deck.Count > 4)           
+                {
+                    throw new Exception($"{playerA.Username}, The provided deck did not include the required amount of cards!");
+                }
+                else if (playerB.Deck.Count > 0 && playerB.Deck.Count< 4)
+                {
+                    throw new Exception($"{playerB.Username}, The provided deck did not include the required amount of cards!");
+                }
 
                 var battleLog = new BattleLog();
                 int roundCounter = 0;
@@ -59,11 +67,6 @@ namespace FHTW.Swen1.Swamp
                 return deck[randomIndex];
             }
 
-            private void TransferCard(User fromUser, User toUser, Card card)
-            {
-                fromUser.Deck.Remove(card);
-                toUser.Deck.Add(card);
-            }
 
             private BattleRound DetermineRoundResult(Card cardA, Card cardB, string playerAName, string playerBName)
             {

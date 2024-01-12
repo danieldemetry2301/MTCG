@@ -205,17 +205,15 @@ using Npgsql;
             {
                 connection.Open();
 
-                var updateUserCommand = new NpgsqlCommand(@"
-            UPDATE Users 
-            SET Name = @name, Bio = @bio, Image = @image 
-            WHERE Username = @username", connection);
+                using (var command = new NpgsqlCommand("UPDATE Users SET Name = @name, Bio = @bio, Image = @image WHERE Username = @username", connection))
+                {
+                    command.Parameters.AddWithValue("@name", updatedUser.Name);
+                    command.Parameters.AddWithValue("@bio", updatedUser.Bio);
+                    command.Parameters.AddWithValue("@image", updatedUser.Image);
+                    command.Parameters.AddWithValue("@username", username);
 
-                updateUserCommand.Parameters.AddWithValue("@name", updatedUser.Name);
-                updateUserCommand.Parameters.AddWithValue("@bio", updatedUser.Bio);
-                updateUserCommand.Parameters.AddWithValue("@image", updatedUser.Image);
-                updateUserCommand.Parameters.AddWithValue("@username", username);
-
-                updateUserCommand.ExecuteNonQuery();
+                    command.ExecuteNonQuery();
+                }
 
                 connection.Close();
             }
