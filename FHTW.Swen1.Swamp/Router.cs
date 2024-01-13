@@ -1,6 +1,7 @@
 ﻿using FHTW.Swen1.Swamp.Database;
 using MTCG_DEMETRY;
 using MTCG_DEMETRY.Battle.MTCG_DEMETRY.Battle;
+using MTCG_DEMETRY.Sell;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -14,6 +15,7 @@ namespace FHTW.Swen1.Swamp
         private List<Package> packages = new List<Package>();
         private LobbyController lobbyController = new LobbyController();
         private TradingController tradingController = new TradingController();
+        private SaleController saleController = new SaleController();
 
         public Router()
         {
@@ -98,9 +100,78 @@ namespace FHTW.Swen1.Swamp
             {
                 HandleDeleteTradingDeal(e);
             }
+            else if (path.StartsWith("/sell") && e.Method == "POST")
+            {
+                HandleCreateSell(e);
+            }
+            else if (path.StartsWith("/sell") && e.Method == "GET")
+            {
+                HandleGetSells(e);
+            }
             else
             {
                 e.Reply(404, "Not Found");
+            }
+        }
+
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        private void HandleGetSells(HttpSvrEventArgs e)
+        {
+            var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
+            if (string.IsNullOrEmpty(token))
+            {
+                e.Reply(401, "Access token is missing or invalid");
+                return;
+            }
+
+            var sells = DatabaseHelper.GetSales();
+            var sellsJson = JsonConvert.SerializeObject(sells, Formatting.Indented);
+            e.Reply(200, sellsJson);
+
+
+        }
+
+
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        private void HandleCreateSell(HttpSvrEventArgs e)
+        {
+            var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
+            if (string.IsNullOrEmpty(token))
+            {
+                e.Reply(401, "Access token is missing or invalid");
+                return;
+            }
+
+            var username = TokenHelper.ExtractUsernameFromToken(token);
+            var user = userController.GetUserByUsername(username);
+            if (user == null)
+            {
+                e.Reply(401, "Access token is missing or invalid");
+                return;
+            }
+
+            var sellOffer = JsonConvert.DeserializeObject<SellOffer>(e.Payload);
+            var result = saleController.CreateOffer(username, sellOffer);
+
+            if (result.StartsWith("201"))
+            {
+                e.Reply(201, result);
+            }
+            else if (result.StartsWith("401"))
+            {
+                e.Reply(401, result);
+            }
+            else if (result.StartsWith("403"))
+            {
+                e.Reply(403, result);
+            }
+            else if (result.StartsWith("409"))
+            {
+                e.Reply(409, result);
             }
         }
 

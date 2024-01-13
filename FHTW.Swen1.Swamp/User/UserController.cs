@@ -86,7 +86,7 @@ using Npgsql;
                         Id = reader.GetInt64(0),
                         Username = reader.GetString(1),
                         Password = reader.GetString(2),
-                        Coins = reader.IsDBNull(3) ? 0 : reader.GetInt32(3)
+                        Coins =  reader.GetInt32(3)
                     };
                 }
 
@@ -111,7 +111,7 @@ using Npgsql;
                 {
                     while (reader.Read())
                     {
-                        var name = reader.IsDBNull(0) ? string.Empty : reader.GetString(0);
+                        var name = reader.GetString(0);
                         var elo = reader.GetInt32(1);
                         var wins = reader.GetInt32(2);
                         var losses = reader.GetInt32(3);
@@ -228,7 +228,11 @@ using Npgsql;
                 var user = GetUserByUsername(username);
                 if (user == null) return new List<Card>();
 
-                var getDeckCommand = new NpgsqlCommand(@"SELECT Cards.* FROM Cards INNER JOIN Decks ON Cards.Id = Decks.CardId WHERE Decks.UserId = @userId", connection);
+                var getDeckCommand = new NpgsqlCommand(@"
+            SELECT Cards.Id, Cards.Name, Cards.Damage, Cards.PackageId, Cards.UserId, Cards.Type 
+            FROM Cards 
+            INNER JOIN Decks ON Cards.Id = Decks.CardId 
+            WHERE Decks.UserId = @userId", connection);
                 getDeckCommand.Parameters.AddWithValue("@userId", user.Id);
 
                 var cards = new List<Card>();
@@ -241,6 +245,9 @@ using Npgsql;
                             Id = reader.GetString(reader.GetOrdinal("Id")),
                             Name = reader.GetString(reader.GetOrdinal("Name")),
                             Damage = reader.GetDouble(reader.GetOrdinal("Damage")),
+                            PackageId = reader.GetString(reader.GetOrdinal("PackageId")),
+                            UserId = reader.GetInt64(reader.GetOrdinal("UserId")),
+                            Type =reader.GetString(reader.GetOrdinal("Type"))
                         };
                         cards.Add(card);
                     }
@@ -248,6 +255,7 @@ using Npgsql;
                 return cards;
             }
         }
+
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -283,6 +291,9 @@ using Npgsql;
                             Id = reader.GetString(reader.GetOrdinal("Id")),
                             Name = reader.GetString(reader.GetOrdinal("Name")),
                             Damage = reader.GetDouble(reader.GetOrdinal("Damage")),
+                            PackageId = reader.GetString(reader.GetOrdinal("PackageId")),
+                            UserId = reader.GetInt32(reader.GetOrdinal("UserId")),
+                            Type = reader.GetString(reader.GetOrdinal("Type"))
                         };
                         cards.Add(card);
                     }

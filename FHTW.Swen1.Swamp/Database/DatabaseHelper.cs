@@ -1,4 +1,5 @@
 ﻿using MTCG_DEMETRY;
+using MTCG_DEMETRY.Sell;
 using Npgsql;
 
 namespace FHTW.Swen1.Swamp.Database
@@ -65,7 +66,7 @@ namespace FHTW.Swen1.Swamp.Database
                         FOREIGN KEY (CardToTrade) REFERENCES Cards(Id)
                     )");
 
-                    ExecuteCommand(connection, @"
+                ExecuteCommand(connection, @"
                     CREATE TABLE IF NOT EXISTS transactions (
                     UserId INTEGER NOT NULL,
                     PackageId TEXT,
@@ -75,7 +76,13 @@ namespace FHTW.Swen1.Swamp.Database
                     FOREIGN KEY (PackageId) REFERENCES Packages(Id)
                     )");
 
-
+                ExecuteCommand(connection, @"
+                    CREATE TABLE IF NOT EXISTS Offers (
+                    Id TEXT PRIMARY KEY,
+                    CardId TEXT,
+                    Price INTEGER,
+                    FOREIGN KEY (CardId) REFERENCES Cards(Id)
+                    )");
 
                 connection.Close();
             }
@@ -101,6 +108,34 @@ namespace FHTW.Swen1.Swamp.Database
             }
         }
 
+        public static List<SellOffer> GetSales()
+        {
+            var sellOffers = new List<SellOffer>();
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+
+                var getSalesCommand = new NpgsqlCommand(@"SELECT offers.id, cards.id AS cardid, offers.price, cards.name, cards.damage FROM Offers INNER JOIN Cards ON offers.cardId = cards.Id ORDER BY Price DESC", connection);
+
+                using (var reader = getSalesCommand.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        var offer = new SellOffer
+                        {
+                            Id = reader.GetString(reader.GetOrdinal("id")),
+                            CardId = reader.GetString(reader.GetOrdinal("cardid")),
+                            Price = reader.GetInt32(reader.GetOrdinal("price")),
+                            Name = reader.GetString(reader.GetOrdinal("name")),
+                            Damage = reader.GetDouble(reader.GetOrdinal("damage"))
+                        };
+                        sellOffers.Add(offer);
+                    }
+                }
+            }
+            return sellOffers;
+        }
+
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -119,6 +154,44 @@ namespace FHTW.Swen1.Swamp.Database
                 command.ExecuteNonQuery();
 
                 connection.Close();
+            }
+        }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+       
+        public static void InsertSaleOffer(SellOffer offer, string cardId)
+        {
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+                var command = new NpgsqlCommand("INSERT INTO Offers (Id, CardId, Price) VALUES (@id, @cardId, @price)", connection);
+
+                command.Parameters.AddWithValue("@id", offer.Id);
+                command.Parameters.AddWithValue("@cardId", cardId);
+                command.Parameters.AddWithValue("@price", offer.Price);
+
+                command.ExecuteNonQuery();
+
+                connection.Close();
+            }
+        }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        public static bool SellOfferExists(string offerId)
+        {
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+                var command = new NpgsqlCommand("SELECT COUNT(*) FROM Offers WHERE Id = @id", connection);
+
+                command.Parameters.AddWithValue("@id", offerId);
+
+                var count = Convert.ToInt32(command.ExecuteScalar());
+                connection.Close();
+                return count > 0;
             }
         }
 
@@ -446,8 +519,8 @@ namespace FHTW.Swen1.Swamp.Database
                             Password = reader.GetString(2),
                             Coins = reader.GetInt32(3),
                             Name = reader.GetString(4),
-                            Bio = reader.IsDBNull(5) ? null : reader.GetString(5),
-                            Image = reader.IsDBNull(6) ? null : reader.GetString(6),
+                            Bio = reader.GetString(5),
+                            Image = reader.GetString(6),
                             Elo = reader.GetInt32(7),
                             Wins = reader.GetInt32(8),
                             Losses = reader.GetInt32(9)
@@ -566,6 +639,7 @@ namespace FHTW.Swen1.Swamp.Database
                 ExecuteCommand(connection, "DROP TABLE IF EXISTS Decks CASCADE");
                 ExecuteCommand(connection, "DROP TABLE IF EXISTS TradingDeals CASCADE");
                 ExecuteCommand(connection, "DROP TABLE IF EXISTS Transactions CASCADE");
+                ExecuteCommand(connection, "DROP TABLE IF EXISTS Offers CASCADE");
                 CreateTables();
 
                 connection.Close();
