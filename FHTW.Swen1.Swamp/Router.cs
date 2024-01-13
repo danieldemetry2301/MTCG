@@ -148,6 +148,7 @@ namespace FHTW.Swen1.Swamp
         private void HandleCreateTradingDeal(HttpSvrEventArgs e)
         {
             var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
+            var username = TokenHelper.ExtractUsernameFromToken(token);
 
             if (string.IsNullOrEmpty(token))
             {
@@ -156,23 +157,23 @@ namespace FHTW.Swen1.Swamp
             }
 
             var tradingDeal = JsonConvert.DeserializeObject<TradingDeal>(e.Payload);
-            var result = tradingController.CreateTradingDeal(token, tradingDeal);
+            var result = tradingController.CreateTradingDeal(username, tradingDeal);
 
             if (result.StartsWith("201"))
             {
-                e.Reply(201, "Trading deal successfully created");
+                e.Reply(201, result);
             }
             else if (result.StartsWith("401"))
             {
-                e.Reply(401, "Access token is missing or invalid");
+                e.Reply(401, result);
             }
             else if (result.StartsWith("403"))
             {
-                e.Reply(403, "The deal contains a card that is not owned by the user or locked in the deck.");
+                e.Reply(403, result);
             }
             else if (result.StartsWith("409"))
             {
-                e.Reply(409, "A deal with this deal ID already exists");
+                e.Reply(409, result);
             }
         }
 
@@ -182,6 +183,7 @@ namespace FHTW.Swen1.Swamp
         private void HandleExecuteTrade(HttpSvrEventArgs e, string dealId)
         {
             var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
+            var username = TokenHelper.ExtractUsernameFromToken(token);
 
             if (string.IsNullOrEmpty(token))
             {
@@ -196,24 +198,31 @@ namespace FHTW.Swen1.Swamp
                 return;
             }
 
-            var result = tradingController.ExecuteTradingDeal(token, dealId, offeredCardId);
+            var result = tradingController.ExecuteTradingDeal(username, dealId, offeredCardId);
+
             if (result.StartsWith("200"))
             {
-                e.Reply(200, "Trading deal successfully executed.");
+                e.Reply(200, result);
             }
-            else
+            else if (result.StartsWith("401"))
             {
-                int statusCode = int.Parse(result.Substring(0, 3));
-                string message = result.Substring(4);
-                e.Reply(statusCode, message);
+                e.Reply(401, result);
+            }
+            else if (result.StartsWith("403"))
+            {
+                e.Reply(403, result);
+            }
+            else if (result.StartsWith("404"))
+            {
+                e.Reply(404, result);
             }
         }
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-    private void HandleGetTradingDeals(HttpSvrEventArgs e)
+        private void HandleGetTradingDeals(HttpSvrEventArgs e)
         {
             var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
             if (string.IsNullOrEmpty(token))
@@ -329,6 +338,7 @@ namespace FHTW.Swen1.Swamp
         {
             var username = e.Path.Split('/')[2];
             var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
+          
 
             if (TokenHelper.ExtractUsernameFromToken(token) != username)
             {

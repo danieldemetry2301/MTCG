@@ -7,10 +7,8 @@ namespace FHTW.Swen1.Swamp
     {
         UserController userController = new();
 
-        public string CreateTradingDeal(string token, TradingDeal deal)
+        public string CreateTradingDeal(string username, TradingDeal deal)
         {
-            var username = TokenHelper.ExtractUsernameFromToken(token);
-
             var user = userController.GetUserByUsername(username);
             if (user == null)
             {
@@ -33,9 +31,8 @@ namespace FHTW.Swen1.Swamp
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        public string ExecuteTradingDeal(string token, string dealId, string offeredCardId)
+        public string ExecuteTradingDeal(string username, string dealId, string offeredCardId)
         {
-            var username = TokenHelper.ExtractUsernameFromToken(token);
             var user = userController.GetUserByUsername(username);
             if (user == null)
             {

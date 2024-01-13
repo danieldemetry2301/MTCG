@@ -1,26 +1,11 @@
 ﻿using MTCG_DEMETRY;
 using Npgsql;
-using NpgsqlTypes;
-using System;
-using System.Collections.Generic;
-using System.IO;
 
 namespace FHTW.Swen1.Swamp.Database
 {
     public class DatabaseHelper
     {
         private const string DataConnectionString = "Host=localhost;Port=5432;Username=postgres;Password=admin;Database=mtcg";
-
-        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        public static void CreateDatabase()
-        {
-            using (var connection = new NpgsqlConnection(DataConnectionString))
-            {
-                connection.Open();
-                connection.Close();
-            }
-        }
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -282,7 +267,6 @@ namespace FHTW.Swen1.Swamp.Database
 
                 connection.Close();
             }
-
             return null;
         }
 
@@ -461,7 +445,6 @@ namespace FHTW.Swen1.Swamp.Database
                         Id = reader.GetInt64(0),
                         Username = reader.GetString(1),
                         Password = reader.GetString(2),
-                        // ... Weitere User-Attribute auslesen
                     };
                 }
 

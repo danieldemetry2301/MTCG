@@ -103,7 +103,7 @@ namespace FHTW.Swen1.Swamp
             }
 
 
-            private double CalculateEffectiveDamage(Card attacker, Card defender)
+            public double CalculateEffectiveDamage(Card attacker, Card defender)
             {
                 double damage = attacker.Damage;
 

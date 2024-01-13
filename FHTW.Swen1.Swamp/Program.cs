@@ -9,9 +9,8 @@ namespace FHTW.Swen1.Swamp
 
         static void Main(string[] args)
         {
-            //DatabaseHelper.ResetDatabase();
-            //DatabaseHelper.CreateDatabase();
-            //DatabaseHelper.CreateTables();
+            DatabaseHelper.ResetDatabase();
+            DatabaseHelper.CreateTables();
             HttpSvr svr = new();
             svr.Incoming += _ProcessMesage;
 

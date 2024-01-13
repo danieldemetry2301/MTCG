@@ -1,6 +1,7 @@
 using FHTW.Swen1.Swamp;
 using FHTW.Swen1.Swamp.Database;
 using FHTW.Swen1.Swamp.FHTW.Swen1.Swamp;
+using MTCG_DEMETRY;
 using Npgsql;
 using NUnit.Framework;
 using System;
@@ -10,18 +11,17 @@ namespace MTCG_Tests
 {
     public class UnitTests
     {
-        private UserController _userController;
-        private PackageController _packageController;
-        private BattleController _battleController;
-        private const string DataConnectionString = "Host=localhost;Port=5432;Username=postgres;Password=admin;Database=mtcg";
+        private UserController _userController = new UserController();
+        private PackageController _packageController = new PackageController(new UserController());
+        private BattleController _battleController = new BattleController();
+        private TradingController _tradingController = new TradingController();
         [SetUp]
         public void Setup()
         {
-            _userController = new UserController();
-            _packageController = new PackageController(new UserController());
-            _battleController = new BattleController();
             
         }
+        
+        //////////////////////////////////////////////// UserController Tests /////////////////////////////////////////////////////////////////
 
         [Test]
         [Order(1)]
@@ -30,9 +30,12 @@ namespace MTCG_Tests
             DatabaseHelper.ResetDatabase();
             var newUser = new User { Username = "DanielTestUser", Password = "DanielTestPassword" };
             var result = _userController.RegisterUser(newUser);
+            var userCheck = _userController.GetUserByUsername("DanielTestUser");
             Assert.AreEqual("201 User successfully registered", result);
-
+            Assert.IsTrue(userCheck.Username == "DanielTestUser");
         }
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         [Test]
         [Order(2)]
@@ -43,9 +46,12 @@ namespace MTCG_Tests
 
             var user2 = new User { Username = "DanielExistingUser", Password = "DanielExistingUser" };
             var result = _userController.RegisterUser(user2);
+            var userCheck = _userController.GetUserByUsername("DanielExistingUser");
             Assert.AreEqual("409 User with the same username already registered", result);
-
+            Assert.IsTrue(userCheck.Username == "DanielExistingUser");
         }
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         [Test]
         [Order(3)]
@@ -56,26 +62,26 @@ namespace MTCG_Tests
             var result = _userController.RegisterUser(newUser);
             var loginResult = _userController.LoginUser("DanielTestUser", "DanielTestPassword");
             Assert.AreEqual("200 User login successful", loginResult);
-
         }
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         [Test]
         [Order(4)]
         public void TestLoginUser_InvalidCredentials_ReturnsErrorMessage()
         {
-            
             var newUser = new User { Username = "DanielTestUser", Password = "DanielTestPassword" };
             _userController.RegisterUser(newUser);
             var loginResult = _userController.LoginUser("Invalid", "DanielTestPassword");
             Assert.AreEqual("401 Invalid username/password provided", loginResult);
-            
         }
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         [Test]
         [Order(5)]
         public void TestUpdateUserProfile_ValidData_UpdatesSuccessfully()
-        {
-            
+        { 
             var user = new User { Username = "DanielTestUser", Password = "DanielTestPassword", Name = "Dan Dan" };
             _userController.RegisterUser(user);
 
@@ -85,15 +91,15 @@ namespace MTCG_Tests
             var userProfile = _userController.GetUserProfile("DanielTestUser");
             Assert.AreEqual("Daniel Dan", userProfile.Name);
             Assert.AreEqual("Hallo!", userProfile.Bio);
-            Assert.AreEqual(";-)", userProfile.Image);
-            
+            Assert.AreEqual(";-)", userProfile.Image); 
         }
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         [Test]
         [Order(6)]
         public void TestUpdateUserProfile_InvalidData_UpdateError()
         {
-           
             var user = new User { Username = "DanielTestUser1", Password = "DanielTestPassword", Name = "Dan Dan" };
             _userController.RegisterUser(user);
 
@@ -104,8 +110,9 @@ namespace MTCG_Tests
             Assert.AreNotEqual("Daniel Error", userProfile.Name);
             Assert.AreNotEqual("Hallo!!", userProfile.Bio);
             Assert.AreNotEqual(";-))", userProfile.Image);
-           
         }
+
+        //////////////////////////////////////////////// PackageController Tests /////////////////////////////////////////////////////////////////
 
         [Test]
         [Order(7)]
@@ -115,9 +122,12 @@ namespace MTCG_Tests
             _userController.RegisterUser(user);
 
             var result = _packageController.AcquirePackage("DanielUserRich");
+            var acquiredCards = _userController.GetUserAcquiredCards("DanielUserRich");
             Assert.AreEqual("404 No card package available for buying", result);
-
+            Assert.IsTrue(acquiredCards.Count == 0);
         }
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         [Test]
         [Order(8)]
@@ -129,9 +139,12 @@ namespace MTCG_Tests
                 new Card { Id = "9101", Name = "ThomasSpell", Damage = 95.0 },
             };
             var result = _packageController.CreatePackage("admin", cards);
+            var cardInDatabase = DatabaseHelper.GetCardById("5678");
             Assert.AreEqual("201 Package and cards successfully created", result);
-
+            Assert.IsTrue(cardInDatabase.Name == "DanielSpell");
         }
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         [Test]
         [Order(9)]
@@ -143,8 +156,11 @@ namespace MTCG_Tests
                 new Card { Id = "9101", Name = "ThomasSpell", Damage = 95.0 },
             };
             var result = _packageController.CreatePackage("noAdmin", cards);
+            var cardInDatabase = DatabaseHelper.GetCardById("5678");
             Assert.AreEqual("403 Provided user is not 'admin'", result);
         }
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         [Test]
         [Order(10)]
@@ -155,8 +171,11 @@ namespace MTCG_Tests
 
             var result = _packageController.AcquirePackage("DanielUserNoMoney");
             Assert.AreEqual("403 Not enough money for buying a card package", result);
-            
+            var acquiredCards = _userController.GetUserAcquiredCards("DanielUserNoMoney");
+            Assert.IsTrue(acquiredCards.Count == 0);
         }
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         [Test]
         [Order(11)]
@@ -172,9 +191,13 @@ namespace MTCG_Tests
             _userController.RegisterUser(user);
 
             var result = _packageController.AcquirePackage("DanielUserRich");
+            var acquiredCards = _userController.GetUserAcquiredCards("DanielUserRich");
             Assert.AreEqual("200 A package has been successfully bought", result);
-            
+            Assert.IsTrue(acquiredCards.Count == 2);
+
         }
+
+        //////////////////////////////////////////////// BattleController Tests /////////////////////////////////////////////////////////////////
 
         [Test]
         [Order(12)]
@@ -211,6 +234,8 @@ namespace MTCG_Tests
             var battleLog = _battleController.StartBattle(player1, player2);
             Assert.AreEqual("Player1", battleLog.Result.Winner);
         }
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         [Test]
         [Order(13)]
@@ -249,6 +274,8 @@ namespace MTCG_Tests
             Assert.IsTrue(player1.Deck.Count > 0 && player2.Deck.Count > 0);
         }
 
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
         [Test]
         [Order(14)]
         public void TestStartBattle_CalculateEffectiveDamage_Player2Wins()
@@ -285,8 +312,10 @@ namespace MTCG_Tests
             Assert.AreEqual("Player2", battleLog.Result.Winner);
         }
 
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
         [Test]
-        [Order(14)]
+        [Order(15)]
         public void TestStartBattle_CalculateEffectiveDamage_Player1Wins()
         {
             DatabaseHelper.ResetDatabase();
@@ -321,8 +350,10 @@ namespace MTCG_Tests
             Assert.AreEqual("Player1", battleLog.Result.Winner);
         }
 
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
         [Test]
-        [Order(15)]
+        [Order(16)]
         public void TestStartBattle_NoCardsInDeck()
         {
             DatabaseHelper.ResetDatabase();
@@ -340,5 +371,140 @@ namespace MTCG_Tests
             Assert.IsTrue(player2.Deck.Count < 4);
         }
 
+        //////////////////////////////////////////////// TradingController Tests /////////////////////////////////////////////////////////////////
+
+        [Test]
+        [Order(17)]
+        public void TestCreateTradeOffer_Sucess()
+        {
+            DatabaseHelper.ResetDatabase();
+            var user = new User { Username = "Trader", Password = "12345" };
+            _userController.RegisterUser(user);
+            var package = new List<Card>
+            {
+                new Card { Id = "0000", Name = "FireSpell", Damage = 35.0 },
+                new Card { Id = "1111", Name = "WaterSpell", Damage = 40.0 },
+                new Card { Id = "2222", Name = "Monster", Damage = 45.0 },
+                new Card { Id = "3333", Name = "Goblin", Damage = 50.0 },
+                new Card { Id = "4444", Name = "Dragon", Damage = 60.0 }
+            };
+            _packageController.CreatePackage("admin", package);
+            _packageController.AcquirePackage("Trader");
+            var tradeOffer = new TradingDeal { Id = "1111", CardToTrade = "0000", MinimumDamage = 40.0, Type = "Monster" };
+            var result = _tradingController.CreateTradingDeal("Trader",tradeOffer);
+            var tradingDeals = DatabaseHelper.GetTradingDeals();
+            Assert.AreEqual("201 Trading deal successfully created", result);
+            Assert.IsTrue(tradingDeals.Count == 1);
+        }
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        [Test]
+        [Order(18)]
+        public void TestCreateTradeOffer_Error_CardDoesNotExist()
+        {
+            DatabaseHelper.ResetDatabase();
+            var user = new User { Username = "Trader", Password = "12345" };
+            _userController.RegisterUser(user);
+            var package = new List<Card>
+            {
+                new Card { Id = "0000", Name = "FireSpell", Damage = 35.0 },
+                new Card { Id = "1111", Name = "WaterSpell", Damage = 40.0 },
+                new Card { Id = "2222", Name = "Monster", Damage = 45.0 },
+                new Card { Id = "3333", Name = "Goblin", Damage = 50.0 },
+                new Card { Id = "4444", Name = "Dragon", Damage = 60.0 }
+            };
+            _packageController.CreatePackage("admin", package);
+            _packageController.AcquirePackage("Trader");
+            var tradeOffer = new TradingDeal { Id = "1111", CardToTrade = "5555", MinimumDamage = 40.0, Type = "Monster" };
+            var result = _tradingController.CreateTradingDeal("Trader", tradeOffer);
+            var tradingDeals = DatabaseHelper.GetTradingDeals();
+            Assert.AreEqual("403 The deal contains a card that is not owned by the user or locked in the deck.", result);
+            Assert.IsTrue(tradingDeals.Count == 0);
+        }
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        [Test]
+        [Order(19)]
+        public void TestAcceptTrading_Sucess()
+        {
+            DatabaseHelper.ResetDatabase();
+            var user = new User { Username = "Trader", Password = "12345" };
+            var user2 = new User { Username = "Trader2", Password = "12345" };
+            _userController.RegisterUser(user);
+            _userController.RegisterUser(user2);
+            var package = new List<Card>
+            {
+                new Card { Id = "0000", Name = "CardFromUser1", Damage = 35.0 },
+            };
+            _packageController.CreatePackage("admin", package);
+            _packageController.AcquirePackage("Trader");
+            var package2 = new List<Card>
+            {
+                new Card { Id = "1111", Name = "CardFromUser2", Damage = 45.0 },
+            };
+            _packageController.CreatePackage("admin", package2);
+            _packageController.AcquirePackage("Trader2");
+            var tradeOffer = new TradingDeal { Id = "1111", CardToTrade = "0000", MinimumDamage = 40.0, Type = "Monster" };
+            _tradingController.CreateTradingDeal("Trader", tradeOffer);
+            var result = _tradingController.ExecuteTradingDeal("Trader2", "1111", "1111");
+            var userOwnsCard = DatabaseHelper.UserOwnsCard(1, "1111");
+            var tradingDeals = DatabaseHelper.GetTradingDeals();
+            Assert.AreEqual("200 Trading deal successfully executed.", result);
+            Assert.IsTrue(userOwnsCard);
+            Assert.IsTrue(tradingDeals.Count == 0);
+        }
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        [Test]
+        [Order(20)]
+        public void TestAcceptTrading_TradingWithYourself_Error()
+        {
+            DatabaseHelper.ResetDatabase();
+            var user = new User { Username = "Trader", Password = "12345" };
+            _userController.RegisterUser(user);
+            var package = new List<Card>
+            {
+                new Card { Id = "0000", Name = "CardFromUser1", Damage = 35.0 },
+                new Card { Id = "1111", Name = "CardFromUser1", Damage = 45.0 },
+            };
+            _packageController.CreatePackage("admin", package);
+            _packageController.AcquirePackage("Trader");
+
+            var tradeOffer = new TradingDeal { Id = "1111", CardToTrade = "0000", MinimumDamage = 40.0, Type = "Monster" };
+            _tradingController.CreateTradingDeal("Trader", tradeOffer);
+            var result = _tradingController.ExecuteTradingDeal("Trader", "1111", "1111");
+            var tradingDeals = DatabaseHelper.GetTradingDeals();
+            Assert.AreEqual("403 Trading with self is not allowed or deal owner not found.", result);
+            Assert.IsTrue(tradingDeals.Count == 1);
+        }
+
+        //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        [Test]
+        [Order(20)]
+        public void TestAcceptTrading_InvalidUser_Error()
+        {
+            DatabaseHelper.ResetDatabase();
+            var user = new User { Username = "Trader", Password = "12345" };
+            _userController.RegisterUser(user);
+            var package = new List<Card>
+            {
+                new Card { Id = "0000", Name = "CardFromUser1", Damage = 35.0 },
+                new Card { Id = "1111", Name = "CardFromUser1", Damage = 45.0 },
+            };
+            _packageController.CreatePackage("admin", package);
+            _packageController.AcquirePackage("Trader");
+
+            var tradeOffer = new TradingDeal { Id = "1111", CardToTrade = "0000", MinimumDamage = 40.0, Type = "Monster" };
+            _tradingController.CreateTradingDeal("Trader", tradeOffer);
+            var result = _tradingController.ExecuteTradingDeal("UnkownUser", "1111", "1111");
+            var tradingDeals = DatabaseHelper.GetTradingDeals();
+            Assert.AreEqual("401 Access token is missing or invalid", result);
+            Assert.IsTrue(tradingDeals.Count == 1);
+            DatabaseHelper.ResetDatabase();
+        }
     }
 }
