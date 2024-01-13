@@ -65,6 +65,38 @@ namespace FHTW.Swen1.Swamp.Database
                         FOREIGN KEY (CardToTrade) REFERENCES Cards(Id)
                     )");
 
+                    ExecuteCommand(connection, @"
+                    CREATE TABLE IF NOT EXISTS transactions (
+                    UserId INTEGER NOT NULL,
+                    PackageId TEXT,
+                    Description TEXT NOT NULL,
+                    Timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (UserId) REFERENCES Users(Id),
+                    FOREIGN KEY (PackageId) REFERENCES Packages(Id)
+                    )");
+
+
+
+                connection.Close();
+            }
+        }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        public static void AddTransaction(long userId, string packageId, string description)
+        {
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+
+                var command = new NpgsqlCommand("INSERT INTO transactions (userId, packageId, description) VALUES (@userId, @packageId, @description)", connection);
+
+                command.Parameters.AddWithValue("@userId", userId);
+                command.Parameters.AddWithValue("@packageId", packageId ?? (object)DBNull.Value);
+                command.Parameters.AddWithValue("@description", description);
+
+                command.ExecuteNonQuery();
+
                 connection.Close();
             }
         }
@@ -162,10 +194,11 @@ namespace FHTW.Swen1.Swamp.Database
             {
                 connection.Open();
 
-                var updateUserCommand = new NpgsqlCommand("UPDATE Users SET Elo = @elo, Wins = @wins, Losses = @losses WHERE Username = @username", connection);
+                var updateUserCommand = new NpgsqlCommand("UPDATE Users SET Elo = @elo, Wins = @wins, Losses = @losses, Coins = @coins WHERE Username = @username", connection);
                 updateUserCommand.Parameters.AddWithValue("@elo", user.Elo);
                 updateUserCommand.Parameters.AddWithValue("@wins", user.Wins);
                 updateUserCommand.Parameters.AddWithValue("@losses", user.Losses);
+                updateUserCommand.Parameters.AddWithValue("@coins", user.Coins);
                 updateUserCommand.Parameters.AddWithValue("@username", user.Username);
 
                 updateUserCommand.ExecuteNonQuery();
@@ -428,6 +461,8 @@ namespace FHTW.Swen1.Swamp.Database
             return null;
         }
 
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         public static User GetUserByCardId(string cardId)
         {
             using (var connection = new NpgsqlConnection(DataConnectionString))
@@ -452,6 +487,9 @@ namespace FHTW.Swen1.Swamp.Database
             }
             return null;
         }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         public static Card GetCardById(string cardId)
         {
@@ -478,6 +516,9 @@ namespace FHTW.Swen1.Swamp.Database
             }
             return null;
         }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         public static void ExchangeCards(long userId1, long userId2, string cardId1, string cardId2)
         {
@@ -518,11 +559,13 @@ namespace FHTW.Swen1.Swamp.Database
             {
                 connection.Open();
 
+                
                 ExecuteCommand(connection, "DROP TABLE IF EXISTS Cards CASCADE");
                 ExecuteCommand(connection, "DROP TABLE IF EXISTS Packages CASCADE");
                 ExecuteCommand(connection, "DROP TABLE IF EXISTS Users CASCADE");
                 ExecuteCommand(connection, "DROP TABLE IF EXISTS Decks CASCADE");
                 ExecuteCommand(connection, "DROP TABLE IF EXISTS TradingDeals CASCADE");
+                ExecuteCommand(connection, "DROP TABLE IF EXISTS Transactions CASCADE");
                 CreateTables();
 
                 connection.Close();

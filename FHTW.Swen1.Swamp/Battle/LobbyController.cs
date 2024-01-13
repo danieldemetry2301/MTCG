@@ -1,11 +1,4 @@
-﻿using FHTW.Swen1.Swamp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace MTCG_DEMETRY.Battle
+﻿namespace MTCG_DEMETRY.Battle
 {
 
     using FHTW.Swen1.Swamp;
@@ -21,6 +14,8 @@ namespace MTCG_DEMETRY.Battle
             private static List<User> waitingUsers = new List<User>();
             private BattleController battleController = new BattleController();
 
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             public string JoinBattleLobby(User user)
             {
                 lock (waitingUsers)
@@ -44,6 +39,9 @@ namespace MTCG_DEMETRY.Battle
 
                 return "Warten auf einen weiteren Spieler, um der Lobby beizutreten..\n";
             }
+
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
             private string FormatBattleLog(BattleLog log, User playerA, User playerB)
             {
@@ -89,12 +87,14 @@ namespace MTCG_DEMETRY.Battle
                 else
                 {
                     output.AppendLine($"Final Winner: {log.Result.Winner} after {log.Result.RoundsPlayed} rounds.");
+                    output.AppendLine($"{log.Result.Winner} gained 5 Coins!");
                 }
 
                 return output.ToString();
             }
 
-
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             private void UpdateEloAndStats(User playerA, User playerB, BattleLog log)
             {
 
@@ -111,6 +111,9 @@ namespace MTCG_DEMETRY.Battle
 
                     winner.Wins += 1;
                     loser.Losses += 1;
+
+                    winner.Coins += 5;
+
 
                     DatabaseHelper.UpdateUserEloAndStats(winner);
                     DatabaseHelper.UpdateUserEloAndStats(loser);

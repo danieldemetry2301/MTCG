@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace MTCG_DEMETRY
+﻿namespace MTCG_DEMETRY
 {
     public class UserStats
     {
@@ -12,5 +6,6 @@ namespace MTCG_DEMETRY
         public int Elo { get; set; }
         public int Wins { get; set; }
         public int Losses { get; set; }
+
     }
 }

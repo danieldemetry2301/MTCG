@@ -1,9 +1,6 @@
 ﻿using FHTW.Swen1.Swamp.Database;
 using MTCG_DEMETRY;
 using Npgsql;
-    using System;
-    using System.Collections.Generic;
-    using System.Linq;
 
     namespace FHTW.Swen1.Swamp
     {
@@ -14,7 +11,7 @@ using Npgsql;
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        
+
         public string RegisterUser(User user)
         {
             using (var connection = new NpgsqlConnection(DataConnectionString))
@@ -234,7 +231,21 @@ using Npgsql;
                 var getDeckCommand = new NpgsqlCommand(@"SELECT Cards.* FROM Cards INNER JOIN Decks ON Cards.Id = Decks.CardId WHERE Decks.UserId = @userId", connection);
                 getDeckCommand.Parameters.AddWithValue("@userId", user.Id);
 
-                return ExecuteQuery<Card>(connection, getDeckCommand);
+                var cards = new List<Card>();
+                using (var reader = getDeckCommand.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        var card = new Card
+                        {
+                            Id = reader.GetString(reader.GetOrdinal("Id")),
+                            Name = reader.GetString(reader.GetOrdinal("Name")),
+                            Damage = reader.GetDouble(reader.GetOrdinal("Damage")),
+                        };
+                        cards.Add(card);
+                    }
+                }
+                return cards;
             }
         }
 
@@ -259,10 +270,24 @@ using Npgsql;
                     return new List<Card>();
                 }
 
-                NpgsqlCommand getCardsCommand = new NpgsqlCommand("SELECT * FROM Cards WHERE UserId = @userId", connection);
+                var getCardsCommand = new NpgsqlCommand("SELECT * FROM Cards WHERE UserId = @userId", connection);
                 getCardsCommand.Parameters.AddWithValue("@userId", user.Id);
 
-                return ExecuteQuery<Card>(connection, getCardsCommand);
+                var cards = new List<Card>();
+                using (var reader = getCardsCommand.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        var card = new Card
+                        {
+                            Id = reader.GetString(reader.GetOrdinal("Id")),
+                            Name = reader.GetString(reader.GetOrdinal("Name")),
+                            Damage = reader.GetDouble(reader.GetOrdinal("Damage")),
+                        };
+                        cards.Add(card);
+                    }
+                }
+                return cards;
             }
         }
 
@@ -350,51 +375,5 @@ using Npgsql;
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        private static void ExecuteCommand(NpgsqlConnection connection, string commandText)
-        {
-            using (var command = new NpgsqlCommand(commandText, connection))
-            {
-                command.ExecuteNonQuery();
-            }
-        }
-
-        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-        private List<T> ExecuteQuery<T>(NpgsqlConnection connection, NpgsqlCommand command) where T : new()
-        {
-            var result = new List<T>();
-            var properties = typeof(T).GetProperties().ToDictionary(p => p.Name.ToLower(), p => p);
-
-            command.Connection = connection;
-
-            using (var reader = command.ExecuteReader())
-            {
-                while (reader.Read())
-                {
-                    var item = new T();
-                    for (int i = 0; i < reader.FieldCount; i++)
-                    {
-                        var columnName = reader.GetName(i).ToLower();
-                        if (properties.TryGetValue(columnName, out var property) && !reader.IsDBNull(i))
-                        {
-                            var value = reader.GetValue(i);
-                            if (property.PropertyType == typeof(string) && value is Guid)
-                            {
-                                value = value.ToString();
-                            }
-                            else if (property.PropertyType != typeof(String) && property.PropertyType.GetInterface(nameof(IConvertible)) != null)
-                            {
-                                value = Convert.ChangeType(value, property.PropertyType);
-                            }
-                            property.SetValue(item, value);
-                        }
-                    }
-                    result.Add(item);
-                }
-            }
-
-            return result;
-        }
     }
 }

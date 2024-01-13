@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using FHTW.Swen1.Swamp.Database;
-using Npgsql;
-using NpgsqlTypes;
+﻿using FHTW.Swen1.Swamp.Database;
 
 namespace FHTW.Swen1.Swamp
 {
@@ -113,21 +107,19 @@ namespace FHTW.Swen1.Swamp
                 globalPackages.RemoveAt(0);
                 DatabaseHelper.AcquireCards(user.Id, acquiredPackage.Cards);
                 user.Cards.AddRange(acquiredPackage.Cards);
+
+                string description = $"{username} bought package {acquiredPackage.Id} for 5 Coins. Remaining Coins {user.Coins}";
+                DatabaseHelper.AddTransaction(user.Id, acquiredPackage.Id, description);
+
                 return "200 A package has been successfully bought";
             }
 
             return "404 No card package available for buying";
         }
 
+
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        private static void ExecuteCommand(NpgsqlConnection connection, string commandText)
-        {
-            using (var command = new NpgsqlCommand(commandText, connection))
-            {
-                command.ExecuteNonQuery();
-            }
-        }
     }
 }

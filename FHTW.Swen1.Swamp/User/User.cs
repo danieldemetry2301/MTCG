@@ -20,6 +20,7 @@ namespace FHTW.Swen1.Swamp
         public int Elo { get; set; } = 100;
         public int Wins { get; set; }
         public int Losses { get; set; }
+        public double WL { get; set; }
         
 
         public User()
