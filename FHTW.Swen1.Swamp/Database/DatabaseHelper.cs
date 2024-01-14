@@ -108,6 +108,84 @@ namespace FHTW.Swen1.Swamp.Database
             }
         }
 
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        public static void AddCoinsToUser(long userId, int amount)
+        {
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+                var cmd = new NpgsqlCommand("UPDATE Users SET Coins = Coins + @amount WHERE Id = @userId", connection);
+                cmd.Parameters.AddWithValue("@userId", userId);
+                cmd.Parameters.AddWithValue("@amount", amount);
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        public static void RemoveCoinsFromUser(long userId, int amount)
+        {
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+                var cmd = new NpgsqlCommand("UPDATE Users SET Coins = Coins - @amount WHERE Id = @userId", connection);
+                cmd.Parameters.AddWithValue("@userId", userId);
+                cmd.Parameters.AddWithValue("@amount", amount);
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        public static void DeleteSellOffer(string offerId)
+        {
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+                var cmd = new NpgsqlCommand("DELETE FROM offers WHERE Id = @offerId", connection);
+                cmd.Parameters.AddWithValue("@offerId", offerId);
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        public static SellOffer GetSellOfferById(string offerId)
+        {
+            using (var connection = new NpgsqlConnection(DataConnectionString))
+            {
+                connection.Open();
+
+                var command = new NpgsqlCommand("SELECT * FROM Offers WHERE Id = @id", connection);
+                command.Parameters.AddWithValue("@id", offerId);
+
+                using (var reader = command.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        var offer = new SellOffer
+                        {
+                            Id = reader.GetString(reader.GetOrdinal("Id")),
+                            CardId = reader.GetString(reader.GetOrdinal("CardId")),
+                            Price = reader.GetInt32(reader.GetOrdinal("Price"))
+                        };
+                        return offer;
+                    }
+                }
+
+                connection.Close();
+            }
+            return null;
+        }
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
         public static List<SellOffer> GetSales()
         {
             var sellOffers = new List<SellOffer>();

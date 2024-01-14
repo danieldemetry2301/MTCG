@@ -102,7 +102,21 @@ namespace FHTW.Swen1.Swamp
             }
             else if (path.StartsWith("/sell") && e.Method == "POST")
             {
-                HandleCreateSell(e);
+                var pathSegments = path.Split('/');
+                if (pathSegments.Length == 3 && pathSegments[1].Equals("sell"))
+                {
+                    // /sell/{offerid}
+                    HandleExecuteSell(e, pathSegments[2]);
+                }
+                else if (pathSegments.Length == 2 && pathSegments[1].Equals("sell"))
+                {
+                    // /offer
+                    HandleCreateSell(e);
+                }
+                else
+                {
+                    e.Reply(404, "Not Found");
+                }
             }
             else if (path.StartsWith("/sell") && e.Method == "GET")
             {
@@ -114,9 +128,43 @@ namespace FHTW.Swen1.Swamp
             }
         }
 
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        private void HandleExecuteSell(HttpSvrEventArgs e, string offerId)
+        {
+            var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
+            var username = TokenHelper.ExtractUsernameFromToken(token);
+
+            if (string.IsNullOrEmpty(token))
+            {
+                e.Reply(401, "Access token is missing or invalid");
+                return;
+            }
+
+            var result = saleController.ExecuteSellDeal(username, offerId);
+
+            if (result.StartsWith("200"))
+            {
+                e.Reply(200, result);
+            }
+            else if (result.StartsWith("401"))
+            {
+                e.Reply(401, result);
+            }
+            else if (result.StartsWith("403"))
+            {
+                e.Reply(403, result);
+            }
+            else if (result.StartsWith("404"))
+            {
+                e.Reply(404, result);
+            }
+        }
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        
         private void HandleGetSells(HttpSvrEventArgs e)
         {
             var token = e.Headers.FirstOrDefault(h => h.Name == "Authorization")?.Value;
@@ -127,13 +175,16 @@ namespace FHTW.Swen1.Swamp
             }
 
             var sells = DatabaseHelper.GetSales();
-            var sellsJson = JsonConvert.SerializeObject(sells, Formatting.Indented);
-            e.Reply(200, sellsJson);
-
-
+            if (sells.Any())
+            {
+                var sellsJson = JsonConvert.SerializeObject(sells, Formatting.Indented);
+                e.Reply(200, sellsJson);
+            }
+            else
+            {
+                e.Reply(201, "The request was fine, but there are no sell offers available");
+            }
         }
-
-
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
