@@ -15,13 +15,13 @@ namespace FHTW.Swen1.Swamp
             svr.Incoming += _ProcessMesage;
 
             svr.Run();
-            
+
         }
 
-        private static void _ProcessMesage(object sender, HttpSvrEventArgs e)
+        private async static void _ProcessMesage(object sender, HttpSvrEventArgs e)
         {
-            router.RouteRequest(e);
+            await Task.Run(() => router.RouteRequest(e));
         }
-    }
 
+    }
 }
